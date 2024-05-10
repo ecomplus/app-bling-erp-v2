@@ -59,14 +59,13 @@ module.exports = (product, originalBlingProduct, blingProductCode, blingStore, a
     }
     blingProduct.pesoLiquido = blingProduct.pesoBruto
   }
-  // let dimensionUnit
+
   if (product.dimensions) {
     const blingProductDimensoes = {}
     for (const side in product.dimensions) {
       if (product.dimensions[side]) {
         const { value } = product.dimensions[side]
         if (value) {
-          // dimensionUnit = product.dimensions[side].unit
           const field = side === 'width'
             ? 'largura'
             : side === 'height' ? 'altura' : 'profundidade'
@@ -169,18 +168,15 @@ module.exports = (product, originalBlingProduct, blingProductCode, blingStore, a
           case 'g':
             blingVariation.pesoBruto /= 1000
         }
-        blingVariation.pesoLiquido = blingVariation
-        // blingVariation.pesoBruto
+        // blingVariation.pesoLiquido = blingVariation
       }
 
-      // let variationDimensionUnit
       if (variation.dimensions) {
         const blingVationDimensoes = {}
         for (const side in variation.dimensions) {
           if (variation.dimensions[side]) {
             const { value } = variation.dimensions[side]
             if (value) {
-              // variationDimensionUnit = variation.dimensions[side].unit
               const field = side === 'width'
                 ? 'largura'
                 : side === 'height' ? 'altura' : 'profundidade'

@@ -16,11 +16,11 @@ module.exports = ({ appSdk, storeId, auth }, _blingToken, blingStore, blingDepos
 
     .then(async ({ data }) => {
       const product = data
-      let blingProductCode, originalBlingProduct, blingProductId, metafieldCodigo, metafieldId //, blingOrderNumber
+      let blingProductCode, originalBlingProduct, blingProductId
       let { metafields } = product
       if (metafields) {
-        metafieldCodigo = metafields.find(({ field }) => field === 'bling:codigo')
-        metafieldId = metafields.find(({ field }) => field === 'bling:id')
+        const metafieldCodigo = metafields.find(({ field }) => field === 'bling:codigo')
+        const metafieldId = metafields.find(({ field }) => field === 'bling:id')
         if (metafieldCodigo) {
           blingProductCode = metafieldCodigo.value
         }
@@ -34,7 +34,6 @@ module.exports = ({ appSdk, storeId, auth }, _blingToken, blingStore, blingDepos
       // Bling Requests
       const bling = await blingAxios(clientId, clientSecret, storeId)
 
-      // console.log('blingProductCode ', blingProductCode)
       const job = bling.get('/produtos', {
         params: {
           codigo: blingProductCode,
@@ -49,7 +48,6 @@ module.exports = ({ appSdk, storeId, auth }, _blingToken, blingStore, blingDepos
         })
 
         .then(async ({ data: { data: blingProducts } }) => {
-          // console.log('>> blingProducts: ', blingProducts)
           if (blingProducts && Array.isArray(blingProducts)) {
             originalBlingProduct = blingProducts.find(({ codigo }) => product.sku === String(codigo))
 
@@ -65,7 +63,6 @@ module.exports = ({ appSdk, storeId, auth }, _blingToken, blingStore, blingDepos
               originalBlingProduct = await bling.get(`/produtos/${blingProductId}`)
                 .then(({ data: { data: productBling } }) => productBling)
             }
-            // console.log('produtos', JSON.stringify(originalBlingProduct))
             const blingProduct = parseProduct(product, originalBlingProduct, blingProductCode, blingStore, appData)
             if (blingProduct) {
               const endpoint = originalBlingProduct ? `/produtos/${blingProductId}` : '/produtos'
