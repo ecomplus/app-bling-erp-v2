@@ -356,7 +356,7 @@ module.exports = (blingProduct, variations, storeId, auth, isNew = true, appData
                 }
               }
               if (tributacao && tributacao.ncm) {
-                variation.mpn = [String(tributacao.ncm)]
+                variation.mpn = String(tributacao.ncm)
               }
             }
           }
