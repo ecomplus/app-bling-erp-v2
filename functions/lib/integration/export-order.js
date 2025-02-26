@@ -155,7 +155,7 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
             const blingOrder = parseOrder(order, blingOrderNumber, blingStore, appData, customerIdBling, paymentTypeId, itemsBling, originalBlingOrder)
             const endpoint = `/pedidos/vendas${blingOrderId ? `/${blingOrderId}` : ''}`
             const method = blingOrderId ? 'put' : 'post'
-            logger.info(`[${method}]: ${endpoint} => ${JSON.stringify(blingOrder)}`)
+            logger.info(`[${method}]: ${endpoint} for ${order._id}`)
             return bling[method](endpoint, blingOrder)
               .then(async ({ data: { data } }) => {
                 logger.info(`Bling Order ${method === 'put' ? 'upd' : 'cre'}ated successfully`)
@@ -184,7 +184,11 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
               })
               .catch(err => {
                 if (err.response) {
-                  logger.warn(JSON.stringify(err.response.data))
+                  logger.warn(`Failed exporting order ${order._id} for #${storeId}`, {
+                    order,
+                    blingOrder,
+                    response: err.response.data
+                  })
                 }
                 logger.error(err)
               })
