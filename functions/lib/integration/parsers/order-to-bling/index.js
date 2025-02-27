@@ -12,6 +12,7 @@ module.exports = (order, blingOrderNumber, blingStore, appData, customerIdBling,
       numeroPedidoCompra: order._id,
       contato: { id: customerIdBling }
     }
+    blingOrder.dataSaida = blingOrder.data
     if (order.number && !appData.disable_order_number) {
       blingOrder.numero = appData.random_order_number === true ? blingOrderNumber : order.number
     }
