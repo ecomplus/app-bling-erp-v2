@@ -17,7 +17,7 @@ module.exports = async function (clientId, clientSecret, storeId, tokenExpiratio
   if (docSnapshot.exists) {
     const {
       access_token: docAccessToken,
-      // refresh_token: refreshToken,
+      refresh_token: refreshToken,
       expiredAt,
       isBloqued,
       updatedAt,
@@ -25,7 +25,7 @@ module.exports = async function (clientId, clientSecret, storeId, tokenExpiratio
     } = docSnapshot.data()
 
     const now = Timestamp.now()
-    const timeLimitBloqued = Timestamp.fromMillis(updatedAt.toMillis() + (24 * 60 * 60 * 1000))
+    const timeLimitBloqued = Timestamp.fromMillis(updatedAt.toMillis() + (12 * 60 * 60 * 1000))
 
     if (isBloqued) {
       throw new Error('Bling refreshToken is invalid need to update')
@@ -55,15 +55,11 @@ module.exports = async function (clientId, clientSecret, storeId, tokenExpiratio
       accessToken = docAccessToken
     } else {
       try {
-        // read the document again, because refreshToken is old
-        const doc = await docRef.get()
-        const refreshToken = doc.data().refresh_token
-
         const data = await blingAuth(clientId, clientSecret, null, storeId, refreshToken)
         await docRef.set({
           ...data,
           updatedAt: now,
-          expiredAt: Timestamp.fromMillis(now.toMillis() + ((data.expires_in - 3600) * 1000)),
+          expiredAt: Timestamp.fromMillis(now.toMillis() + ((data.expires_in - 300) * 1000)),
           countErr: 0
         }, { merge: true })
         accessToken = data.access_token
@@ -88,7 +84,9 @@ module.exports = async function (clientId, clientSecret, storeId, tokenExpiratio
       }
     }
   } else {
-    throw new Error('No Bling token document')
+    const err = new Error('No Bling token document')
+    err.code = 'NO_BLING_TOKEN'
+    throw err
   }
 
   return createAxios(accessToken)

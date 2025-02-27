@@ -149,6 +149,9 @@ exports.updateTokens = functions.pubsub.schedule(cron).onRun(() => {
 })
 console.log(`-- Sheduled update E-Com Plus tokens '${cron}'`)
 
+const updateBlingTokens = require('./lib/integration/update-bling-tokens')
+exports.updateBlingTokens = functions.pubsub.schedule('36 * * * *').onRun(updateBlingTokens)
+
 exports.eventsQueue = firestore.onDocumentWritten(
   `queue/{storeId}/${nameCollectionEvents}/{docId}`,
   createExecContext(addEventsQueue)
