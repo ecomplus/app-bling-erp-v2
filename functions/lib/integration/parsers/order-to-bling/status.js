@@ -25,7 +25,7 @@ const findStatusConfig = (statusApi, appData) => {
   }
 
   const statusApp = appData.parse_status.find(status => status.status_ecom === parseStatus[statusApi])
-  return statusApp.status_bling
+  return statusApp?.status_bling || null
 }
 
 module.exports = (order, appData) => {
