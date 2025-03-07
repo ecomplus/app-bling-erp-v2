@@ -140,17 +140,17 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
             }
 
             const customerIdBling = await getCustomerBling(bling, appData, order)
-            const itemsBling = await getProductsBling(bling, order)
-
             if (!customerIdBling) {
               logger.info('Bling Customer not found')
               throw new Error('Bling Customer not found')
             }
-
+            const itemsBling = await getProductsBling(bling, order)
+            /*
             if (order.items?.length !== itemsBling?.length) {
               logger.warn(`Bling Item(s) not found orderItems: ${JSON.stringify(order.items)} => blingItems'${JSON.stringify(itemsBling)}`)
               throw new Error('Bling Item(s) not found')
             }
+            */
 
             const blingOrder = parseOrder(order, blingOrderNumber, blingStore, appData, customerIdBling, paymentTypeId, itemsBling, originalBlingOrder)
             const endpoint = `/pedidos/vendas${blingOrderId ? `/${blingOrderId}` : ''}`

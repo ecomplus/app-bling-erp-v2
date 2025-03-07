@@ -1,47 +1,24 @@
 const { logger } = require('../../../context')
 
 module.exports = async (blingAxios, order) => {
-  const promise = []
-  const codItems = order.items?.reduce((acc, item) => {
-    acc.push(`/produtos?codigo=${item.sku}`)
-    return acc
-  }, [])
-
-  codItems.forEach(url => {
-    promise.push(
-      blingAxios.get(url)
-        .then(({ data }) => {
-          if (data.data && data.data.length) {
-            return data.data[0]
-          }
-        })
-        .catch(err => {
-          if (err.response) {
-            logger.error(JSON.stringify(err.response.data))
-          } else {
-            logger.error(err)
-          }
-        })
-    )
+  let url = ''
+  order.items.forEach((item) => {
+    if (!item.sku) return
+    if (!url) url = `/produtos?codigo[]=${item.sku}`
+    else url += `&codigo[]=${item.sku}`
   })
-
-  // return Promise.all(promise)
-  //   .then(response => {
-  //     const list = []
-  //     response.forEach((item) => {
-  //       if (item) {
-  //         list.push(item)
-  //       }
-  //     })
-  //     return list
-  //   })
-
-  const list = []
-  for await (const result of promise) {
-    if (result) {
-      list.push(result)
+  if (!url) return []
+  try {
+    const { data } = await blingAxios.get(url)
+    if (data.data && data.data.length) {
+      return data.data
+    }
+  } catch (err) {
+    if (err.response) {
+      logger.error(JSON.stringify(err.response.data))
+    } else {
+      logger.error(err)
     }
   }
-
-  return list
+  return []
 }
