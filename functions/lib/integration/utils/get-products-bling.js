@@ -7,39 +7,23 @@ module.exports = async (blingAxios, order) => {
     return acc
   }, [])
 
-  codItems.forEach(url => {
-    promise.push(
-      blingAxios.get(url)
-        .then(({ data }) => {
-          if (data.data && data.data.length) {
-            return data.data[0]
-          }
-        })
-        .catch(err => {
-          if (err.response) {
-            logger.error(JSON.stringify(err.response.data))
-          } else {
-            logger.error(err)
-          }
-        })
-    )
-  })
-
-  // return Promise.all(promise)
-  //   .then(response => {
-  //     const list = []
-  //     response.forEach((item) => {
-  //       if (item) {
-  //         list.push(item)
-  //       }
-  //     })
-  //     return list
-  //   })
-
   const list = []
-  for await (const result of promise) {
-    if (result) {
-      list.push(result)
+  // Process URLs sequentially with delay
+  for (const url of codItems) {
+    try {
+      // Add 1 second delay between requests
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      const { data } = await blingAxios.get(url)
+      if (data.data && data.data.length) {
+        list.push(data.data[0])
+      }
+    } catch (err) {
+      if (err.response) {
+        logger.error(JSON.stringify(err.response.data))
+      } else {
+        logger.error(err)
+      }
     }
   }
 
