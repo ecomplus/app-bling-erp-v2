@@ -1,4 +1,4 @@
-module.exports = situacao => {
+module.exports = (situacao, appData) => {
   let financialStatus, fulfillmentStatus
   switch (situacao) {
     case 'venda agenciada':
@@ -57,6 +57,45 @@ module.exports = situacao => {
     case 'disputa':
       financialStatus = 'in_dispute'
       break
+  }
+
+  if (!financialStatus && !fulfillmentStatus) {
+
+    const statusApp = appData.parse_status.find(status => status.status_bling === situacao)
+    
+    if (statusApp && statusApp.status_ecom) {
+      const parseStatus = [
+        ['pending', 'Pendente', 'financial'],
+        ['under_analysis', 'Em análise', 'financial'],
+        ['authorized', 'Autorizado', 'financial'],
+        ['unauthorized', 'Não autorizado', 'financial'],
+        ['partially_paid', 'Parte pago', 'financial'],
+        ['paid', 'Pago', 'financial'],
+        ['in_dispute', 'Disputa', 'financial'],
+        ['partially_refunded', 'Parte devolvido', 'financial'],
+        ['refunded', 'Devolvido', 'financial'],
+        ['voided', 'Cancelado', 'financial'],
+        ['in_production', 'Em produção', 'fulfillment'],
+        ['in_separation', 'Em separação', 'fulfillment'],
+        ['ready_for_shipping', 'Pronto para envio', 'fulfillment'],
+        ['invoice_issued', 'NF emitida', 'fulfillment'],
+        ['shipped', 'Enviado', 'fulfillment'],
+        ['partially_shipped', 'Parte enviado', 'fulfillment'],
+        ['partially_delivered', 'Parte entregue', 'fulfillment'],
+        ['delivered', 'Entregue', 'fulfillment'],
+        ['returned_for_exchange', 'Retorno e troca', 'fulfillment'],
+        ['received_for_exchange', 'Aguardando troca', 'fulfillment']
+      ];
+
+      const matchedEcom = parseStatus.find(([key, val]) => val.toLowerCase() === statusObject.status_ecom.toLowerCase());
+      if (matchedEcom) {
+          const [key, , category] = matchedEcom;
+          category === 'financial' ? 
+            financialStatus = key 
+            : fulfillmentStatus = key
+      }
+    }
+
   }
   return { financialStatus, fulfillmentStatus }
 }
