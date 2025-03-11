@@ -55,13 +55,13 @@ module.exports = async ({ appSdk, storeId, auth }, _blingStore, _blingDeposit, q
                 .apiRequest(storeId, `/orders/${order._id}.json`, 'PATCH', partialOrder, auth))
             }
 
-            const { fulfillmentStatus, financialStatus } = parseStatus(situacao?.toLowerCase())
+            const { fulfillmentStatus, financialStatus } = parseStatus(situacao?.toLowerCase(), appData)
             const data = {
               date_time: new Date().toISOString(),
               flags: ['from-bling']
             }
 
-              ;[
+            ;[
               [financialStatus, 'payments_history'],
               [fulfillmentStatus, 'fulfillments']
             ].forEach(([newStatus, subresource]) => {

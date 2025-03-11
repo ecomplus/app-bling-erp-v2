@@ -1,6 +1,21 @@
-module.exports = situacao => {
+module.exports = (situacao, appData) => {
   let financialStatus, fulfillmentStatus
-  switch (situacao) {
+  const mappedStatus = appData.parse_status?.find((status) => {
+    return status?.status_bling === situacao
+  })
+  switch (mappedStatus?.status_ecom?.toLowerCase() || situacao) {
+    case 'pendente':
+      financialStatus = 'pending'
+      break
+    case 'em análise':
+      financialStatus = 'under_analysis'
+      break
+    case 'autorizado':
+      financialStatus = 'authorized'
+      break
+    case 'não autorizado':
+      financialStatus = 'unauthorized'
+      break
     case 'venda agenciada':
     case 'aprovado':
     case 'pago':
@@ -23,15 +38,9 @@ module.exports = situacao => {
     case 'pronto para envio':
       fulfillmentStatus = 'ready_for_shipping'
       break
-    case 'parte enviado':
-      fulfillmentStatus = 'partially_shipped'
-      break
     case 'enviado':
     case 'despachado':
       fulfillmentStatus = 'shipped'
-      break
-    case 'parte entregue':
-      fulfillmentStatus = 'partially_delivered'
       break
     case 'entregue':
       fulfillmentStatus = 'delivered'
@@ -42,17 +51,11 @@ module.exports = situacao => {
     case 'aguardando troca':
       fulfillmentStatus = 'received_for_exchange'
       break
-    case 'parte devolvido':
-      fulfillmentStatus = 'partially_refunded'
-      break
     case 'devolvido':
       fulfillmentStatus = 'refunded'
       break
     case 'retorno e troca':
       fulfillmentStatus = 'returned_for_exchange'
-      break
-    case 'parte pago':
-      financialStatus = 'partially_paid'
       break
     case 'disputa':
       financialStatus = 'in_dispute'
