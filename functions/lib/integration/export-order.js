@@ -122,10 +122,9 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
               return {}
             }
           }
-
           if (!originalBlingOrder) {
             if (appData.approved_orders_only) {
-              switch (blingStatus) {
+              switch (blingStatus?.toLowerCase()) {
                 case 'pendente':
                 case 'em aberto':
                 case 'cancelado':
