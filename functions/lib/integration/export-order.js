@@ -202,10 +202,13 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
               let blingStatusObj
 
               const findBlingStatus = statusLabel => {
-                blingStatusObj = situacoes.find((situacao) => {
-                  return situacao.nome && situacao.nome.toLowerCase() === statusLabel?.toLowerCase()
-                })
+                if (statusLabel) {
+                  blingStatusObj = situacoes.find((situacao) => {
+                    return situacao.nome && situacao.nome.toLowerCase() === (typeof statusLabel === 'string' ? statusLabel.toLowerCase() : statusLabel)
+                  })
+                }
               }
+              
               if (Array.isArray(blingStatus)) {
                 for (let i = 0; i < blingStatus.length; i++) {
                   findBlingStatus(blingStatus[i])
