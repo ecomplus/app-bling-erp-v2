@@ -97,7 +97,7 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
           throw err
         })
         .then(async ({ data: { data } }) => {
-          const blingStatus = parseStatus(order, appData)
+          const blingStatuses = parseStatus(order, appData)
           const hasFoundByNumber = Boolean(Array.isArray(data) && data.length)
           let originalBlingOrder
           if (hasFoundByNumber) {
@@ -116,20 +116,23 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
           }
           if (originalBlingOrder) {
             blingOrderId = originalBlingOrder.id
-            return { blingStatus }
+            return { blingStatuses }
           } else if (!canCreateNew) {
             if (canCreateNew === false || hasCreatedBlingOrder) {
               return {}
             }
           }
           if (!originalBlingOrder) {
-            if (appData.approved_orders_only) {
-              switch (blingStatus?.toLowerCase()) {
-                case 'pendente':
-                case 'em aberto':
-                case 'cancelado':
-                  logger.info(`${logHead} skipped with status "${blingStatus}"`)
-                  return {}
+            if (appData.approved_orders_only && blingStatuses) {
+              for (let i = 0; i < blingStatuses.length; i++) {
+                const blingStatus = blingStatuses[i]
+                switch (blingStatus) {
+                  case 'pendente':
+                  case 'em aberto':
+                  case 'cancelado':
+                    logger.info(`${logHead} skipped with status "${blingStatus}"`)
+                    return {}
+                }
               }
             }
             if (!blingOrderNumber) {
@@ -179,7 +182,7 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
                   }, auth)
                 }
 
-                return { blingStatus }
+                return { blingStatuses }
               })
               .catch(err => {
                 if (err.response) {
@@ -196,25 +199,20 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
         })
 
         .then((response) => {
-          const blingStatus = response?.blingStatus
+          const blingStatuses = response?.blingStatuses
           if (blingOrderId) {
             const getParseStatusBling = (situacoes) => {
               let blingStatusObj
-
-              const findBlingStatus = statusLabel => {
-                blingStatusObj = situacoes.find((situacao) => {
-                  return situacao.nome && situacao.nome.toLowerCase() === statusLabel?.toLowerCase()
-                })
-              }
-              if (Array.isArray(blingStatus)) {
-                for (let i = 0; i < blingStatus.length; i++) {
-                  findBlingStatus(blingStatus[i])
+              if (blingStatuses) {
+                for (let i = 0; i < blingStatuses.length; i++) {
+                  const blingStatus = blingStatuses[i]
+                  blingStatusObj = situacoes.find((situacao) => {
+                    return situacao.nome && situacao.nome.toLowerCase() === blingStatus
+                  })
                   if (blingStatusObj) {
                     break
                   }
                 }
-              } else {
-                findBlingStatus(blingStatus)
               }
               return blingStatusObj
             }
@@ -230,7 +228,6 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
                       return getParseStatusBling([data])
                     })
                 }
-
                 if (!blingStatusCurrent || blingStatusCurrent.nome !== newStatusBling.nome) {
                   return bling.patch(`/pedidos/vendas/${blingOrderId}/situacoes/${newStatusBling.id}`)
                     .then(() => logger.info('Bling order status updated successfully'))

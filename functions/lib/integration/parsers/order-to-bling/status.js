@@ -1,6 +1,5 @@
 const findStatusConfig = (statusApi, appData) => {
   if (!appData.parse_status || !appData.parse_status.length) return null
-
   const parseStatus = {
     pending: 'Pendente',
     under_analysis: 'Em análise',
@@ -23,9 +22,10 @@ const findStatusConfig = (statusApi, appData) => {
     returned_for_exchange: 'Retorno e troca',
     received_for_exchange: 'Aguardando troca'
   }
-
   const statusApp = appData.parse_status.find(status => status.status_ecom === parseStatus[statusApi])
-  return statusApp?.status_bling || null
+  return statusApp?.status_bling
+    ? [statusApp.status_bling.toLowerCase()]
+    : null
 }
 
 module.exports = (order, appData) => {
@@ -36,22 +36,20 @@ module.exports = (order, appData) => {
       financialStatus = paymentsHistory[paymentsHistory.length - 1].status
     }
   }
-
   switch (financialStatus) {
     case 'pending':
     case 'under_analysis':
     case 'unknown':
     case 'authorized':
     case 'partially_paid':
-      return findStatusConfig(financialStatus, appData) || 'em aberto'
+      return findStatusConfig(financialStatus, appData) || ['em aberto']
     case 'voided':
     case 'refunded':
     case 'in_dispute':
     case 'unauthorized':
     case 'partially_refunded':
-      return findStatusConfig(financialStatus, appData) || 'cancelado'
+      return findStatusConfig(financialStatus, appData) || ['cancelado']
   }
-
   const fulfillmentStatus = order.fulfillment_status && order.fulfillment_status.current
   switch (fulfillmentStatus) {
     case 'in_production':
@@ -68,9 +66,8 @@ module.exports = (order, appData) => {
     case 'delivered':
       return findStatusConfig(fulfillmentStatus, appData) || ['entregue', 'atendido']
   }
-
   if (financialStatus && financialStatus === 'paid') {
     return findStatusConfig(fulfillmentStatus, appData) || ['aprovado', 'em aberto']
   }
-  return 'em aberto'
+  return ['em aberto']
 }
