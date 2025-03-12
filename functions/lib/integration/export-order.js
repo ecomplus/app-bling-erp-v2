@@ -23,6 +23,10 @@ const getStatusBling = async (bling) => bling.get('/situacoes/modulos')
 
 module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEntry, appData, canCreateNew) => {
   const orderId = queueEntry.nextId
+  const logHead = `#${storeId} ${orderId}`
+  if (storeId === 51266) {
+    logger.info(`[Store 51266] Starting order export process for ${logHead}`)
+  }
   const {
     client_id: clientId,
     client_secret: clientSecret,
@@ -32,6 +36,13 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
   return appSdk.apiRequest(storeId, `/orders/${orderId}.json`, 'GET', null, auth)
     .then(async ({ response }) => {
       const order = response.data
+      if (storeId === 51266) {
+        logger.info(`[Store 51266] Order data retrieved:`, { 
+          orderId,
+          financial_status: order.financial_status,
+          metafields: order.metafields 
+        })
+      }
       const transaction = order.transactions && order.transactions[0]
       const logHead = `#${storeId} ${orderId}`
       if (!order.financial_status) {
@@ -77,6 +88,11 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
 
       const job = bling.get(endpoint)
         .catch(err => {
+          logger.error(`${logHead} Error fetching from Bling:`, {
+            endpoint,
+            error: err.message,
+            response: err.response?.data
+          })
           if (err.response && err.response.status === 404) {
             if (blingOrderId) {
               const newEndpoint = `/pedidos/vendas?${params.toString()}`
@@ -160,7 +176,12 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
             logger.info(`[${method}]: ${endpoint} for ${order._id}`)
             return bling[method](endpoint, blingOrder)
               .then(async ({ data: { data } }) => {
-                logger.info(`Bling Order ${method === 'put' ? 'upd' : 'cre'}ated successfully`)
+                const actionType = method === 'put' ? 'updated' : 'created'
+                logger.info(`${logHead} Bling Order ${actionType} successfully`, {
+                  blingOrderId: data.id,
+                  method,
+                  endpoint
+                })
                 if (data.id) {
                   blingOrderId = data.id
                   if (!metafields) {
@@ -185,14 +206,23 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
                 return { blingStatuses }
               })
               .catch(err => {
-                if (err.response) {
-                  logger.warn(`Failed exporting order ${order._id} for #${storeId}`, {
-                    order,
-                    blingOrder,
-                    response: err.response.data
+                const errorDetails = {
+                  orderId: order._id,
+                  storeId,
+                  endpoint,
+                  method,
+                  errorMessage: err.message,
+                  responseData: err.response?.data
+                }
+                logger.error(`${logHead} Failed exporting order to Bling:`, errorDetails)
+                if (storeId === 51266) {
+                  logger.info(`[Store 51266] Detailed error info:`, {
+                    ...errorDetails,
+                    orderData: order,
+                    blingOrderData: blingOrder
                   })
                 }
-                logger.error(err)
+                throw err
               })
           }
           return {}
@@ -252,6 +282,22 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
     })
 
     .catch(err => {
+      const errorDetails = {
+        orderId,
+        storeId,
+        isConfigError: err.isConfigError,
+        status: err.response?.status,
+        message: err.message
+      }
+      logger.error(`${logHead} Order export failed:`, errorDetails)
+      
+      if (storeId === 51266) {
+        logger.info(`[Store 51266] Export error details:`, {
+          ...errorDetails,
+          stack: err.stack
+        })
+      }
+      
       if (err.response) {
         const { status } = err.response
         if (status >= 400 && status < 500) {
