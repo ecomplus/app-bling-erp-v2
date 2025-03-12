@@ -1,5 +1,5 @@
 const findStatusConfig = (statusApi, appData) => {
-  if (!appData.parse_status || !appData.parse_status.length) return null
+  if (!appData.parse_status?.length) return null
   const parseStatus = {
     pending: 'Pendente',
     under_analysis: 'Em análise',
@@ -29,7 +29,7 @@ const findStatusConfig = (statusApi, appData) => {
 }
 
 module.exports = (order, appData) => {
-  let financialStatus = order.financial_status && order.financial_status.current
+  let financialStatus = order.financial_status?.current
   if (!financialStatus) {
     const paymentsHistory = order.payments_history
     if (paymentsHistory && paymentsHistory.length) {
@@ -42,7 +42,7 @@ module.exports = (order, appData) => {
     case 'unknown':
     case 'authorized':
     case 'partially_paid':
-      return findStatusConfig(financialStatus, appData) || ['em aberto']
+      return findStatusConfig(financialStatus, appData) || ['pendente', 'em aberto']
     case 'voided':
     case 'refunded':
     case 'in_dispute':
@@ -50,7 +50,7 @@ module.exports = (order, appData) => {
     case 'partially_refunded':
       return findStatusConfig(financialStatus, appData) || ['cancelado']
   }
-  const fulfillmentStatus = order.fulfillment_status && order.fulfillment_status.current
+  const fulfillmentStatus = order.fulfillment_status?.current
   switch (fulfillmentStatus) {
     case 'in_production':
       return findStatusConfig(fulfillmentStatus, appData) || ['em produção', 'em andamento']
@@ -66,8 +66,8 @@ module.exports = (order, appData) => {
     case 'delivered':
       return findStatusConfig(fulfillmentStatus, appData) || ['entregue', 'atendido']
   }
-  if (financialStatus && financialStatus === 'paid') {
-    return findStatusConfig(fulfillmentStatus, appData) || ['aprovado', 'em aberto']
+  if (financialStatus === 'paid') {
+    return findStatusConfig(financialStatus, appData) || ['aprovado', 'em aberto']
   }
-  return ['em aberto']
+  return ['em aberto', 'pendente']
 }

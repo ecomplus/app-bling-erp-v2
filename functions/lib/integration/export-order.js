@@ -126,12 +126,9 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
             if (appData.approved_orders_only && blingStatuses) {
               for (let i = 0; i < blingStatuses.length; i++) {
                 const blingStatus = blingStatuses[i]
-                switch (blingStatus) {
-                  case 'pendente':
-                  case 'em aberto':
-                  case 'cancelado':
-                    logger.info(`${logHead} skipped with status "${blingStatus}"`)
-                    return {}
+                if (blingStatus === 'pendente' || blingStatus === 'cancelado') {
+                  logger.info(`${logHead} skipped with status "${blingStatus}"`)
+                  return {}
                 }
               }
             }
