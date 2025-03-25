@@ -203,7 +203,7 @@ module.exports = async ({ appSdk, storeId, auth }, _blingStore, blingDeposit, qu
         .then(async ({ data }) => {
           const responseData = data && data.data
           if (responseData) {
-            logger.info(`DEBUG ${JSON.stringify(responseData)}`)
+            // logger.info(`DEBUG ${JSON.stringify(responseData)}`)
             const blingProduct = !blingProductId && responseData.length ? responseData[0] : responseData
             if (blingProduct) {
               const idsProdutos = [blingProduct.id]
@@ -260,7 +260,7 @@ module.exports = async ({ appSdk, storeId, auth }, _blingStore, blingDeposit, qu
           err.isConfigError = true
           throw new Error(err)
         })
-      logger.info(`> Produto bling: ${JSON.stringify(blingProduct)}`)
+      logger.info('Produto bling:', { blingProduct })
 
       const { product, variationId } = payload
       const isStockOnly = Boolean(product && !(appData.update_product || appData.update_product_auto))

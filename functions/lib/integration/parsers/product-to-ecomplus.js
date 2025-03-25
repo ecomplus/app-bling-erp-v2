@@ -1,6 +1,6 @@
 const ecomUtils = require('@ecomplus/utils')
 const axios = require('axios')
-// const { logger } = require('../../../context')
+const { logger } = require('../../../context')
 const FormData = require('form-data')
 
 const removeAccents = str => str.replace(/áàãâÁÀÃÂ/g, 'a')
@@ -364,22 +364,29 @@ module.exports = (blingProduct, variations, storeId, auth, isNew = true, appData
       })
     }
 
-    if (isNew && blingProduct.midia && blingProduct.midia.imagens && Array.isArray(blingProduct.midia.imagens.externas) && blingProduct.midia.imagens.externas.length) {
+    if (isNew && blingProduct.midia?.imagens) {
       if (!product.pictures) {
         product.pictures = []
       }
       const promises = []
-      blingProduct.midia.imagens.externas.forEach(({ link }) => {
-        if (typeof link === 'string' && link.startsWith('http')) {
-          promises.push(tryImageUpload(storeId, auth, link, product))
-        }
-      })
+      try {
+        ;[
+          ...blingProduct.midia.imagens.externas,
+          ...blingProduct.midia.imagens.internas
+        ].forEach(({ link }) => {
+          if (typeof link === 'string' && link.startsWith('http')) {
+            promises.push(tryImageUpload(storeId, auth, link, product))
+          }
+        })
+      } catch (err) {
+        logger.warn(err)
+      }
       return Promise.all(promises).then((images) => {
         if (Array.isArray(product.variations) && product.variations.length) {
           product.variations.forEach(variation => {
             if (variation.picture_id || variation.picture_id === 0) {
               const variationImage = images[variation.picture_id]
-              if (variationImage._id) {
+              if (variationImage?._id) {
                 variation.picture_id = variationImage._id
               } else {
                 delete variation.picture_id
