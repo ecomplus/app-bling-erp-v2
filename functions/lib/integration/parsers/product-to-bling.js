@@ -90,14 +90,12 @@ module.exports = (product, originalBlingProduct, blingProductCode, blingStore, a
   }
   if (product.pictures && product.pictures.length) {
     blingProduct.midia.imagens = {
-      externas: [],
-      internas: []
+      imagensURL: []
     }
     product.pictures.forEach(({ zoom, big, normal }) => {
       const img = (zoom || big || normal)
-
       if (img) {
-        blingProduct.midia.imagens.externas.push({ link: img.url })
+        blingProduct.midia.imagens.imagensURL.push({ link: img.url })
       }
     })
   }
