@@ -22,13 +22,9 @@ const postPaymentMethod = async (blingAxios, paymentMethod, body) => {
     .then(({ data: { data } }) => data)
 }
 
-const getPaymentBling = async (blingAxios, transaction, appDataParsePayment) => {
-  const {
-    payment_method: paymentMethod
-  } = transaction
-
-  const namePaymentMethod = paymentMethod?.name?.toLowerCase()
-
+const getPaymentBling = async (blingAxios, transaction, appDataParsePayment, paymentLabel) => {
+  const paymentMethod = transaction?.payment_method || {}
+  const namePaymentMethod = (paymentLabel || paymentMethod.name)?.toLowerCase()
   let parsePayment
   if (appDataParsePayment && appDataParsePayment.length) {
     parsePayment = appDataParsePayment.find(payment => payment.ecom_payment.toLowerCase() === namePaymentMethod)
@@ -47,7 +43,6 @@ const getPaymentBling = async (blingAxios, transaction, appDataParsePayment) => 
       })
     return formasPagamentos?.id
   }
-
   return parsePayment.bling_payment
 }
 

@@ -72,7 +72,14 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
       const bling = new Bling(clientId, clientSecret, storeId)
       const endpoint = `/pedidos/vendas${hasCreatedBlingOrder ? `/${blingOrderId}` : `?${params.toString()}`}`
 
-      const paymentTypeId = transaction ? await getPaymentBling(bling, transaction, appData.parse_payment) : null
+      const paymentTypeId = transaction
+        ? await getPaymentBling(
+          bling,
+          transaction,
+          appData.parse_payment,
+          order.payment_method_label
+        )
+        : null
       const allStatusBling = await getStatusBling(bling)
 
       const job = bling.get(endpoint)
