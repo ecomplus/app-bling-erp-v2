@@ -161,7 +161,10 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
             const blingOrder = parseOrder(order, blingOrderNumber, blingStore, appData, customerIdBling, paymentTypeId, itemsBling, originalBlingOrder)
             const endpoint = `/pedidos/vendas${blingOrderId ? `/${blingOrderId}` : ''}`
             const method = blingOrderId ? 'put' : 'post'
-            logger.info(`[${method}]: ${endpoint} for ${order._id}`)
+            logger.info(`[${method}]: ${endpoint} for ${order._id}`, {
+              blingOrder,
+              blingStatuses,
+            })
             return bling[method](endpoint, blingOrder)
               .then(async ({ data: { data } }) => {
                 logger.info(`Bling Order ${method === 'put' ? 'upd' : 'cre'}ated successfully`)
