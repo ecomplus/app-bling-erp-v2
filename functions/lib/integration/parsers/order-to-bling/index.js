@@ -90,9 +90,13 @@ module.exports = (order, blingOrderNumber, blingStore, appData, customerIdBling,
         )
       }
       if (!originalBlingOrder || !originalBlingOrder.transporte?.volumes?.length) {
-        blingOrder.transporte.volumes = [{
-          servico: shippingService ? shippingService.bling_shipping : shippingLine.app.service_code
-        }]
+        let shippingLabel = shippingService?.bling_shipping
+        if (!shippingLabel) {
+          shippingLabel = shippingLine.app?.service_code || order.shipping_method_label
+        }
+        if (shippingLabel) {
+          blingOrder.transporte.volumes = [{ servico: shippingLabel }]
+        }
       }
 
       if (shippingLine.package && shippingLine.package.weight) {
