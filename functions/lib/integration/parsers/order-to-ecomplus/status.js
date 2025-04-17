@@ -1,7 +1,8 @@
 module.exports = (situacao, appData) => {
+  situacao = `${situacao}`.toLowerCase()
   let financialStatus, fulfillmentStatus
   const mappedStatus = appData.parse_status?.find((status) => {
-    return status?.status_bling === situacao
+    return status?.status_bling?.toLowerCase() === situacao
   })
   switch (mappedStatus?.status_ecom?.toLowerCase() || situacao) {
     case 'pendente':
