@@ -5,7 +5,7 @@ const Bling = require('../bling-auth/client')
 const parseProduct = require('./parsers/product-to-ecomplus')
 
 const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, product, variationId, blingDeposit, blingProduct, isStockOnly) => {
-  // logger.info(`Bling product for #${storeId} ${sku}`, { blingProduct })
+  logger.info(`Bling product for #${storeId} ${sku}`, { blingProduct })
   let blingItems = [blingProduct]
   if (Array.isArray(blingProduct.variacoes)) {
     blingItems = blingItems.concat(blingProduct.variacoes)
