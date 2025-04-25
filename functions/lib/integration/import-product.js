@@ -5,6 +5,7 @@ const Bling = require('../bling-auth/client')
 const parseProduct = require('./parsers/product-to-ecomplus')
 
 const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, product, variationId, blingDeposit, blingProduct, isStockOnly) => {
+  logger.info(`Bling product for #${storeId} ${sku}`, { blingProduct })
   let blingItems = [blingProduct]
   if (Array.isArray(blingProduct.variacoes)) {
     blingItems = blingItems.concat(blingProduct.variacoes)
@@ -33,8 +34,6 @@ const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, prod
   const blingProductFind = !variationId ? blingProduct : blingItems.find(item => item.codigo === sku)
   let quantity = Number(blingProductFind.estoqueAtual)
 
-  // logger.info(`> BlingProduct: ${JSON.stringify(blingProduct)}`)
-
   if (product && (isStockOnly === true || !appData.update_product || variationId)) {
     if (!isNaN(quantity)) {
       if (quantity < 0) {
@@ -45,7 +44,7 @@ const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, prod
         endpoint += `/variations/${variationId}`
       }
       endpoint += '/quantity.json'
-      logger.info(`#${storeId} ${endpoint}`, { quantity, sku })
+      logger.info(`#${storeId} ${endpoint}`, { quantity, sku, blingDeposit })
       return appSdk.apiRequest(storeId, endpoint, 'PUT', { quantity }, auth)
     }
     return null
