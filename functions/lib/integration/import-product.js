@@ -10,7 +10,10 @@ const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, prod
     blingItems = blingItems.concat(blingProduct.variacoes)
   }
   blingItems.forEach(blingItem => {
-    if (Array.isArray(blingItem.depositos)) {
+    if (
+      Array.isArray(blingItem.depositos) &&
+      (blingDeposit || typeof blingItem.estoqueAtual !== 'number')
+    ) {
       const depositFind = blingItem.depositos.find((deposito) => String(deposito.id) === String(blingDeposit))
       const deposits = depositFind ? [depositFind] : blingItem.depositos
       let quantity = 0
