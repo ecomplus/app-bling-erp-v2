@@ -18,10 +18,10 @@ const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, prod
         if (Number(storeId) === 51292 || appData.has_stock_reserve) {
           quantity += !Number.isNaN(Number(deposit.saldoVirtual)) ? Number(deposit.saldoVirtual) : 0
         } else {
-          quantity += !Number.isNaN(Number(deposit.saldoFisico)) ? Number(deposit.saldoFisico) : 0
+          const saldo = typeof deposit.saldo === 'number' ? Number(deposit.saldo) : Number(deposit.saldoFisico)
+          quantity += !Number.isNaN(saldo) ? saldo : 0
         }
       })
-
       blingItem.estoqueAtual = quantity
       delete blingItem.depositos
     }
@@ -30,7 +30,7 @@ const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, prod
   const blingProductFind = !variationId ? blingProduct : blingItems.find(item => item.codigo === sku)
   let quantity = Number(blingProductFind.estoqueAtual)
 
-  logger.info(`> BlingProduct: ${JSON.stringify(blingProduct)}`)
+  // logger.info(`> BlingProduct: ${JSON.stringify(blingProduct)}`)
 
   if (product && (isStockOnly === true || !appData.update_product || variationId)) {
     if (!isNaN(quantity)) {
@@ -81,7 +81,7 @@ const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, prod
           value: `${blingProduct.id}`
         })
       }
-      logger.info(`#${storeId} ${method} ${endpoint} body: ${JSON.stringify(bodyProduct)}`)
+      logger.info(`#${storeId} ${method} ${endpoint}`, { bodyProduct })
 
       return appSdk.apiRequest(storeId, endpoint, method, bodyProduct, auth)
     })
@@ -254,13 +254,12 @@ module.exports = async ({ appSdk, storeId, auth }, _blingStore, blingDeposit, qu
               }
             }
           }
-          logger.info(`The returned product is ${JSON.stringify(data?.data)}`)
+          // logger.info(`The returned product is ${JSON.stringify(data?.data)}`)
           const msg = `SKU ${sku} não encontrado no Bling`
           const err = new Error(msg)
           err.isConfigError = true
           throw new Error(err)
         })
-      logger.info('Produto bling:', { blingProduct })
 
       const { product, variationId } = payload
       const isStockOnly = Boolean(product && !(appData.update_product || appData.update_product_auto))
