@@ -36,7 +36,7 @@ module.exports = (blingOrder, shippingLines, bling, storeId) => new Promise((res
       if (transporte && transporte.volumes) {
         const { volumes } = transporte
         for (let i = 0; i < volumes.length && i < shippingLines.length; i++) {
-          const { volume } = volumes[i]
+          const volume = volumes[i].volume || volumes[i]
           const shippingLine = shippingLines[i]
           addTrackingCode(shippingLine, volume)
         }

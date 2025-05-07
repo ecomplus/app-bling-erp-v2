@@ -40,7 +40,7 @@ module.exports = async ({ appSdk, storeId, auth }, _blingStore, _blingDeposit, q
 
       const numero = blingOrder.numeroLoja && blingOrder.numeroLoja.length ? blingOrder.numeroLoja : blingOrder.numero
       const listEndpoint = '/orders.json?limit=1&fields=_id,payments_history,fulfillments,shipping_lines' +
-      `&number=${numero}`
+        `&number=${numero}`
       return appSdk.apiRequest(storeId, listEndpoint, 'GET', null, auth)
         .then(({ response }) => {
           const { result } = response.data
