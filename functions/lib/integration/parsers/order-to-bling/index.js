@@ -111,7 +111,7 @@ module.exports = (order, blingOrderNumber, blingStore, appData, customerIdBling,
       } else if (transaction.payment_method.name) {
         blingPaymentLabel = transaction.payment_method.name.substring(0, 140)
       }
-      const total = subtotal + (blingOrder.transporte?.frete || 0) - (blingOrder.desconto.valor || 0)
+      const total = subtotal + (blingOrder.transporte?.frete || 0) - (blingOrder.desconto?.valor || 0)
       blingOrder.parcelas = []
       if (transaction.installments) {
         const { number } = transaction.installments
