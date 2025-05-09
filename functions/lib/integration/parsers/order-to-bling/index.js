@@ -26,18 +26,21 @@ module.exports = (order, blingOrderNumber, blingStore, appData, customerIdBling,
     const transaction = order.transactions && order.transactions[0]
     const shippingAddress = shippingLine && shippingLine.to
 
+    let subtotal = 0
     if (order.items && order.items.length) {
       blingOrder.itens = []
       order.items.forEach(item => {
         if (item.quantity) {
           const itemRef = (item.sku || item._id).substring(0, 40)
+          const valor = Math.round(ecomUtils.price(item) * 100) / 100
           const itemToBling = {
             codigo: itemRef,
             descricao: item.name ? item.name.substring(0, 120) : itemRef,
             unidade: 'Un',
             quantidade: item.quantity,
-            valor: ecomUtils.price(item)
+            valor
           }
+          subtotal += (valor * item.quantity)
           const productBlingId = (itemsBling.find(itemBling => itemBling?.codigo === item?.sku))?.id
           if (productBlingId) {
             Object.assign(itemToBling, { produto: { id: productBlingId } })
@@ -45,41 +48,6 @@ module.exports = (order, blingOrderNumber, blingStore, appData, customerIdBling,
           blingOrder.itens.push(itemToBling)
         }
       })
-    }
-
-    if (transaction) {
-      let blingPaymentLabel = ''
-      if (order.payment_method_label) {
-        blingPaymentLabel = order.payment_method_label
-      } else if (transaction.payment_method.name) {
-        blingPaymentLabel = transaction.payment_method.name.substring(0, 140)
-      }
-      blingOrder.parcelas = []
-      if (transaction.installments) {
-        const { number } = transaction.installments
-        const vlr = amount.total / number
-        if (vlr === Math.round(vlr * 100) / 100) {
-          const date = new Date(blingOrder.data).getTime()
-          for (let i = 0; i < number; i++) {
-            const addDaysMs = i ? (i * 30 * 24 * 60 * 60 * 1000) : 0
-            const deadLine = new Date(date + addDaysMs)
-            blingOrder.parcelas.push({
-              dataVencimento: deadLine.toISOString().substring(0, 10),
-              valor: vlr,
-              observacoes: `${blingPaymentLabel} (${(i + 1)}/${number})`,
-              formaPagamento: { id: paymentTypeId }
-            })
-          }
-        }
-      }
-      if (!blingOrder.parcelas.length) {
-        blingOrder.parcelas.push({
-          dataVencimento: blingOrder.data,
-          valor: amount.total,
-          observacoes: `${blingPaymentLabel} (1/1)`,
-          formaPagamento: { id: paymentTypeId }
-        })
-      }
     }
 
     if (shippingLine) {
@@ -114,29 +82,61 @@ module.exports = (order, blingOrderNumber, blingStore, appData, customerIdBling,
         blingOrder.transporte.etiqueta = {}
         parseAddress(shippingAddress, blingOrder.transporte.etiqueta)
       }
-    }
 
-    if (typeof amount.freight === 'number') {
-      if (!(blingOrder.transporte && Object.keys(blingOrder.transporte).length)) {
-        blingOrder.transporte = {}
+      if (typeof amount.freight === 'number') {
+        blingOrder.transporte.frete = Math.round(amount.freight * 100) / 100
       }
-      blingOrder.transporte.frete = amount.freight
     }
 
     if (amount.discount) {
       blingOrder.desconto = {
-        valor: amount.discount,
+        valor: Math.round(amount.discount * 100) / 100,
         unidade: 'REAL'
       }
     }
     if (amount.balance) {
-      if (!(blingOrder.desconto && blingOrder.desconto.valor)) {
+      if (!blingOrder.desconto) {
         blingOrder.desconto = {
           valor: 0,
           unidade: 'REAL'
         }
       }
-      blingOrder.desconto.valor += amount.balance
+      blingOrder.desconto.valor += Math.round(amount.balance * 100) / 100
+    }
+
+    if (transaction) {
+      let blingPaymentLabel = ''
+      if (order.payment_method_label) {
+        blingPaymentLabel = order.payment_method_label
+      } else if (transaction.payment_method.name) {
+        blingPaymentLabel = transaction.payment_method.name.substring(0, 140)
+      }
+      const total = subtotal + (blingOrder.transporte?.frete || 0) - (blingOrder.desconto.valor || 0)
+      blingOrder.parcelas = []
+      if (transaction.installments) {
+        const { number } = transaction.installments
+        const vlr = Math.round(total * 100 / number) / 100
+        const date = new Date(blingOrder.data).getTime()
+        for (let i = 0; i < number; i++) {
+          const addDaysMs = i ? (i * 30 * 24 * 60 * 60 * 1000) : 0
+          const deadLine = new Date(date + addDaysMs)
+          blingOrder.parcelas.push({
+            dataVencimento: deadLine.toISOString().substring(0, 10),
+            valor: i < number - 1
+              ? vlr
+              : total - (vlr * i),
+            observacoes: `${blingPaymentLabel} (${(i + 1)}/${number})`,
+            formaPagamento: { id: paymentTypeId }
+          })
+        }
+      } else {
+        blingOrder.parcelas.push({
+          dataVencimento: blingOrder.data,
+          valor: total,
+          observacoes: `${blingPaymentLabel} (1/1)`,
+          formaPagamento: { id: paymentTypeId }
+        })
+      }
     }
 
     if (order.notes) {
