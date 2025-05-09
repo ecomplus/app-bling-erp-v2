@@ -57,15 +57,16 @@ module.exports = (order, blingOrderNumber, blingStore, appData, customerIdBling,
       blingOrder.parcelas = []
       if (transaction.installments) {
         const { number } = transaction.installments
-        const extra = amount.extra || 0
-        const vlr = (amount.total - extra) / number
+        const vlr = Math.round(amount.total * 100 / number) / 100
         const date = new Date(blingOrder.data).getTime()
         for (let i = 0; i < number; i++) {
           const addDaysMs = i ? (i * 30 * 24 * 60 * 60 * 1000) : 0
           const deadLine = new Date(date + addDaysMs)
           blingOrder.parcelas.push({
             dataVencimento: deadLine.toISOString().substring(0, 10),
-            valor: vlr,
+            valor: i < number - 1
+              ? vlr
+              : amount.total - (vlr * (i + 1)),
             observacoes: `${blingPaymentLabel} (${(i + 1)}/${number})`,
             formaPagamento: { id: paymentTypeId }
           })
