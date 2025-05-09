@@ -66,7 +66,7 @@ module.exports = (order, blingOrderNumber, blingStore, appData, customerIdBling,
             dataVencimento: deadLine.toISOString().substring(0, 10),
             valor: i < number - 1
               ? vlr
-              : amount.total - (vlr * (i + 1)),
+              : amount.total - (vlr * i),
             observacoes: `${blingPaymentLabel} (${(i + 1)}/${number})`,
             formaPagamento: { id: paymentTypeId }
           })
