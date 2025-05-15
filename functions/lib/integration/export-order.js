@@ -98,13 +98,14 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
         )
         : null
       const allStatusBling = await getStatusBling(bling, storeId)
+      const blingStatuses = parseStatus(order, appData)
 
       const job = bling.get(endpoint)
         .catch(err => {
           if (err.response && err.response.status === 404) {
             if (blingOrderId) {
               const newEndpoint = `/pedidos/vendas?${params.toString()}`
-              hasCreatedBlingOrder = undefined
+              hasCreatedBlingOrder = false
               blingOrderId = undefined
               return bling.get(newEndpoint)
                 .catch(err => {
@@ -121,32 +122,31 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
           throw err
         })
         .then(async ({ data: { data } }) => {
-          const blingStatuses = parseStatus(order, appData)
           const hasFoundByNumber = Boolean(Array.isArray(data) && data.length)
-          let originalBlingOrder
-          if (hasFoundByNumber) {
-            originalBlingOrder = data.find((pedido) => {
+          if (Array.isArray(data)) {
+            blingSavedOrder = data.find((pedido) => {
               if (String(order.number) === pedido.numeroLoja) {
                 return !blingStore || (String(blingStore) === String(pedido.loja && pedido.loja.id))
               }
               return false
             })
-            if (!originalBlingOrder && blingOrderNumber) {
-              originalBlingOrder = data.find((pedido) => {
-                return blingOrderNumber === String(pedido.numero)
+            if (!blingSavedOrder && blingOrderNumber) {
+              blingSavedOrder = data.find((pedido) => {
+                return blingSavedOrder === String(pedido.numero)
               })
             }
+          } else {
+            blingSavedOrder = data
           }
-          if (originalBlingOrder) {
-            blingSavedOrder = originalBlingOrder
-            blingOrderId = originalBlingOrder.id
-            return { blingStatuses }
+          if (blingSavedOrder) {
+            blingOrderId = blingSavedOrder.id
+            return {}
           } else if (!canCreateNew) {
             if (canCreateNew === false || hasCreatedBlingOrder) {
               return {}
             }
           }
-          if (!originalBlingOrder) {
+          if (!blingSavedOrder) {
             if (appData.approved_orders_only && blingStatuses) {
               for (let i = 0; i < blingStatuses.length; i++) {
                 const blingStatus = blingStatuses[i]
@@ -175,7 +175,7 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
             }
             */
 
-            const blingOrder = parseOrder(order, blingOrderNumber, blingStore, appData, customerIdBling, paymentTypeId, itemsBling, originalBlingOrder)
+            const blingOrder = parseOrder(order, blingOrderNumber, blingStore, appData, customerIdBling, paymentTypeId, itemsBling, blingSavedOrder)
             const endpoint = `/pedidos/vendas${blingOrderId ? `/${blingOrderId}` : ''}`
             const method = blingOrderId ? 'put' : 'post'
             logger.info(`[${method}]: ${endpoint} for ${order._id}`, {
@@ -207,7 +207,7 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
                   }, auth)
                 }
 
-                return { blingStatuses }
+                return {}
               })
               .catch(err => {
                 if (err.response) {
@@ -223,9 +223,8 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
           return {}
         })
 
-        .then(async (response) => {
-          const blingStatuses = response?.blingStatuses
-          if (blingOrderId) {
+        .then(async () => {
+          if (blingOrderId && blingStatuses) {
             const getParseStatusBling = (situacoes) => {
               let blingStatusObj
               if (blingStatuses) {
