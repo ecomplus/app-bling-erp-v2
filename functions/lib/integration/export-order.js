@@ -245,10 +245,9 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
               situacao = data.situacao
             }
             const newStatusBling = getParseStatusBling(allStatusBling)
-            logger.info(`Maybe updating status for ${orderId} to ${newStatusBling?.nome}`, {
+            logger.info(`Maybe updating ${orderId} to ${newStatusBling?.nome} (${newStatusBling?.id})`, {
               blingStatuses,
               allStatusBling,
-              newStatusBling,
               situacao
             })
             if (newStatusBling) {
