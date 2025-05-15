@@ -226,19 +226,18 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
         .then(async () => {
           if (blingOrderId && blingStatuses) {
             const getParseStatusBling = (situacoes) => {
-              let blingStatusObj
               if (blingStatuses) {
                 for (let i = 0; i < blingStatuses.length; i++) {
                   const blingStatus = blingStatuses[i]
-                  blingStatusObj = situacoes.find((situacao) => {
+                  const blingStatusObj = situacoes.find((situacao) => {
                     return situacao.nome && situacao.nome.toLowerCase() === blingStatus
                   })
                   if (blingStatusObj) {
-                    break
+                    return blingStatusObj
                   }
                 }
               }
-              return blingStatusObj
+              return null
             }
             let situacao = blingSavedOrder?.situacao
             if (!situacao?.id) {
@@ -246,7 +245,7 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
               situacao = data.situacao
             }
             const newStatusBling = getParseStatusBling(allStatusBling)
-            logger.info(`Maybe updating status for ${orderId}`, {
+            logger.info(`Maybe updating status for ${orderId} to ${newStatusBling?.nome}`, {
               blingStatuses,
               allStatusBling,
               newStatusBling,
