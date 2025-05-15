@@ -124,7 +124,7 @@ module.exports = (order, blingOrderNumber, blingStore, appData, customerIdBling,
             dataVencimento: deadLine.toISOString().substring(0, 10),
             valor: i < number - 1
               ? vlr
-              : total - (vlr * i),
+              : Math.round((total - (vlr * i)) * 100) / 100,
             observacoes: `${blingPaymentLabel} (${(i + 1)}/${number})`,
             formaPagamento: { id: paymentTypeId }
           })
@@ -132,7 +132,7 @@ module.exports = (order, blingOrderNumber, blingStore, appData, customerIdBling,
       } else {
         blingOrder.parcelas.push({
           dataVencimento: blingOrder.data,
-          valor: total,
+          valor: Math.round(total * 100) / 100,
           observacoes: `${blingPaymentLabel} (1/1)`,
           formaPagamento: { id: paymentTypeId }
         })
