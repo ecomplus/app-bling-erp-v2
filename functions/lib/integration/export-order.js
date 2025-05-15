@@ -250,12 +250,8 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
               allStatusBling,
               situacao
             })
-            if (newStatusBling) {
-              let blingStatusCurrent
-              if (situacao?.id) {
-                blingStatusCurrent = allStatusBling?.find(({ id }) => id === situacao.id)
-              }
-              if (blingStatusCurrent?.nome !== newStatusBling.nome) {
+            if (newStatusBling?.id) {
+              if (situacao?.id !== newStatusBling.id) {
                 return bling.patch(`/pedidos/vendas/${blingOrderId}/situacoes/${newStatusBling.id}`)
                   .then(() => logger.info('Bling order status updated successfully'))
                   .catch(err => {
