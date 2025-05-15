@@ -1,3 +1,4 @@
+const { Timestamp, getFirestore } = require('firebase-admin/firestore')
 const ecomUtils = require('@ecomplus/utils')
 const { logger } = require('./../../context')
 const errorHandling = require('../store-api/error-handling')
@@ -9,17 +10,32 @@ const getCustomerBling = require('./utils/get-customer-bling')
 const getProductsBling = require('./utils/get-products-bling')
 const { getPaymentBling } = require('./utils/payment-method')
 
-const getStatusBling = async (bling) => bling.get('/situacoes/modulos')
-  .then(({ data: { data: modules } }) => {
-    const salesModules = modules.find((module) => module.nome.toLowerCase() === 'vendas')
-    if (salesModules) {
-      return bling.get(`/situacoes/modulos/${salesModules.id}`)
-        .then(({ data: { data: situacoes } }) => {
-          return situacoes
-        })
+const getStatusBling = async (bling, storeId) => {
+  const docRef = getFirestore().doc(`bling_statuses/${storeId}`)
+  const docSnapshot = await docRef.get()
+  const now = Timestamp.now()
+  if (docSnapshot.exists) {
+    const { situacoes, updatedAt } = docSnapshot.data()
+    if (now.toMillis() - updatedAt.toMillis() < 1000 * 60 * 60) {
+      return situacoes
     }
-    return null
-  })
+  }
+  return bling.get('/situacoes/modulos')
+    .then(({ data: { data: modules } }) => {
+      const salesModules = modules.find((module) => module.nome.toLowerCase() === 'vendas')
+      if (salesModules) {
+        return bling.get(`/situacoes/modulos/${salesModules.id}`)
+          .then(({ data: { data: situacoes } }) => {
+            docRef.set({
+              situacoes,
+              updatedAt: now
+            })
+            return situacoes
+          })
+      }
+      return null
+    })
+}
 
 module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEntry, appData, canCreateNew) => {
   const orderId = queueEntry.nextId
@@ -41,6 +57,7 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
 
       let blingOrderNumber
       let blingOrderId
+      let blingSavedOrder
       let hasCreatedBlingOrder
       let { metafields } = order
       let metafieldId
@@ -80,7 +97,7 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
           order.payment_method_label
         )
         : null
-      const allStatusBling = await getStatusBling(bling)
+      const allStatusBling = await getStatusBling(bling, storeId)
 
       const job = bling.get(endpoint)
         .catch(err => {
@@ -114,7 +131,6 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
               }
               return false
             })
-
             if (!originalBlingOrder && blingOrderNumber) {
               originalBlingOrder = data.find((pedido) => {
                 return blingOrderNumber === String(pedido.numero)
@@ -122,6 +138,7 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
             }
           }
           if (originalBlingOrder) {
+            blingSavedOrder = originalBlingOrder
             blingOrderId = originalBlingOrder.id
             return { blingStatuses }
           } else if (!canCreateNew) {
@@ -163,12 +180,13 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
             const method = blingOrderId ? 'put' : 'post'
             logger.info(`[${method}]: ${endpoint} for ${order._id}`, {
               blingOrder,
-              blingStatuses,
+              blingStatuses
             })
             return bling[method](endpoint, blingOrder)
               .then(async ({ data: { data } }) => {
                 logger.info(`Bling Order ${method === 'put' ? 'upd' : 'cre'}ated successfully`)
                 if (data.id) {
+                  blingSavedOrder = blingOrder
                   blingOrderId = data.id
                   if (!metafields) {
                     metafields = []
@@ -205,7 +223,7 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
           return {}
         })
 
-        .then((response) => {
+        .then(async (response) => {
           const blingStatuses = response?.blingStatuses
           if (blingOrderId) {
             const getParseStatusBling = (situacoes) => {
@@ -223,34 +241,38 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
               }
               return blingStatusObj
             }
-
-            return bling.get(`/pedidos/vendas/${blingOrderId}`).then(async ({ data: { data } }) => {
-              const situacao = data.situacao
-              const newStatusBling = getParseStatusBling(allStatusBling)
-              if (newStatusBling) {
-                let blingStatusCurrent
-                if (situacao) {
-                  blingStatusCurrent = await bling.get(`/situacoes/${data.situacao.id}`)
-                    .then(({ data: { data } }) => {
-                      return getParseStatusBling([data])
-                    })
-                }
-                if (!blingStatusCurrent || blingStatusCurrent.nome !== newStatusBling.nome) {
-                  return bling.patch(`/pedidos/vendas/${blingOrderId}/situacoes/${newStatusBling.id}`)
-                    .then(() => logger.info('Bling order status updated successfully'))
-                    .catch(err => {
-                      if (err.response) {
-                        logger.warn(JSON.stringify(err.response.data))
-                      }
-                      logger.error(err)
-                    })
-                }
-                return null
-              }
-              const err = new Error('Sua conta Bling não tem "situacoes" cadastradas ou a API do Bling falhou')
-              err.isConfigError = true
-              throw err
+            let situacao = blingSavedOrder?.situacao
+            if (!situacao?.id) {
+              const { data: { data } } = await bling.get(`/pedidos/vendas/${blingOrderId}`)
+              situacao = data.situacao
+            }
+            const newStatusBling = getParseStatusBling(allStatusBling)
+            logger.info(`Maybe updating status for ${orderId}`, {
+              blingStatuses,
+              allStatusBling,
+              newStatusBling,
+              situacao
             })
+            if (newStatusBling) {
+              let blingStatusCurrent
+              if (situacao?.id) {
+                blingStatusCurrent = allStatusBling?.find(({ id }) => id === situacao.id)
+              }
+              if (blingStatusCurrent?.nome !== newStatusBling.nome) {
+                return bling.patch(`/pedidos/vendas/${blingOrderId}/situacoes/${newStatusBling.id}`)
+                  .then(() => logger.info('Bling order status updated successfully'))
+                  .catch(err => {
+                    if (err.response) {
+                      logger.warn(JSON.stringify(err.response.data))
+                    }
+                    logger.error(err)
+                  })
+              }
+              return null
+            }
+            const err = new Error('Sua conta Bling não tem "situacoes" cadastradas ou a API do Bling falhou')
+            err.isConfigError = true
+            throw err
           }
           return null
         })
