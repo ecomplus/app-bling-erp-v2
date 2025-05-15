@@ -45,7 +45,11 @@ module.exports = async (blingAxios, appData, order) => {
     if (buyer.phones) {
       ;['celular', 'tel'].forEach((blingCustomerField, i) => {
         const phone = buyer.phones && buyer.phones[i]
-        if (phone) {
+        if (phone?.number.length >= 9 && phone.number.length <= 11) {
+          if (phone.number.length === 9) {
+            blingCustomer[blingCustomerField] = `11${phone.number}`
+            return
+          }
           blingCustomer[blingCustomerField] = phone.number
         }
       })
