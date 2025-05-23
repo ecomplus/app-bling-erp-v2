@@ -396,7 +396,7 @@ const app = {
           type: 'object',
           properties: {
             status_ecom: {
-              title: 'Status E-Com Plus',
+              title: 'Status e-com.plus',
               type: 'string',
               enum: [
                 'Pendente',

@@ -53,9 +53,9 @@ module.exports = (order, appData) => {
   const fulfillmentStatus = order.fulfillment_status?.current
   switch (fulfillmentStatus) {
     case 'in_production':
-      return findStatusConfig(fulfillmentStatus, appData) || ['em produção', 'em andamento']
+      return findStatusConfig(fulfillmentStatus, appData) || ['em produção', 'em producao', 'em andamento']
     case 'in_separation':
-      return findStatusConfig(fulfillmentStatus, appData) || ['em separação', 'em andamento']
+      return findStatusConfig(fulfillmentStatus, appData) || ['em separação', 'em separacao', 'em andamento']
     case 'invoice_issued':
       return findStatusConfig(fulfillmentStatus, appData) || ['faturado', 'atendido']
     case 'ready_for_shipping':
