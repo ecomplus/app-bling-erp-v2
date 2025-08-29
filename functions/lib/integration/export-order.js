@@ -8,6 +8,7 @@ const url = require('url')
 const getCustomerBling = require('./utils/get-customer-bling')
 const getProductsBling = require('./utils/get-products-bling')
 const { getPaymentBling } = require('./utils/payment-method')
+const getVendedorBling = require('./utils/get-vendedor-bling')
 
 const getStatusBling = async (bling) => bling.get('/situacoes/modulos')
   .then(({ data: { data: modules } }) => {
@@ -170,7 +171,10 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
             }
             */
 
-            const blingOrder = parseOrder(order, blingOrderNumber, blingStore, appData, customerIdBling, paymentTypeId, itemsBling, originalBlingOrder)
+            // Get vendedor ID if configured
+            const vendedorIdBling = appData.bling_order_data.vendedor
+
+            const blingOrder = parseOrder(order, blingOrderNumber, blingStore, appData, customerIdBling, paymentTypeId, itemsBling, originalBlingOrder, vendedorIdBling)
             const endpoint = `/pedidos/vendas${blingOrderId ? `/${blingOrderId}` : ''}`
             const method = blingOrderId ? 'put' : 'post'
             logger.info(`[${method}]: ${endpoint} for ${order._id}`)
