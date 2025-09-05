@@ -352,29 +352,47 @@ const app = {
         description: 'Predefinições opcionais para pedidos exportados da plataforma para o Bling',
         type: 'object',
         properties: {
-          nat_operacao: {
-            type: 'string',
-            maxLength: 60,
-            title: 'Natureza da operação'
-          },
           vendedor: {
-            type: 'string',
-            maxLength: 100,
-            title: 'Nome do vendedor'
+            type: 'object',
+            title: 'Vendedor',
+            properties: {
+              id: {
+                type: 'number',
+                title: 'ID do vendedor no Bling'
+              }
+            },
           },
-          vlr_frete: {
-            type: 'number',
-            minimum: 0,
-            maximum: 999999,
-            title: 'Fixar valor do frete',
-            description: 'Por padrão será enviado o frete original de cada pedido'
+          transporte: {
+            type: 'object',
+            title: 'Configurações de transporte',
+            properties: {
+              frete: {
+                type: 'number',
+                minimum: 0,
+                maximum: 999999,
+                title: 'Fixar valor do frete',
+                description: 'Por padrão será enviado o frete original de cada pedido'
+              }
+            }
           },
-          vlr_desconto: {
-            type: 'number',
-            minimum: 0,
-            maximum: 999999,
-            title: 'Fixar valor do desconto',
-            description: 'Por padrão será enviado o desconto original de cada pedido'
+          desconto: {
+            type: 'object',
+            title: 'Configurações de desconto',
+            properties: {
+              valor: {
+                type: 'number',
+                minimum: 0,
+                maximum: 999999,
+                title: 'Fixar valor do desconto',
+                description: 'Por padrão será enviado o desconto original de cada pedido'
+              },
+              unidade: {
+                type: 'string',
+                enum: ['REAL', 'PERCENTUAL'],
+                default: 'REAL',
+                title: 'Unidade do desconto'
+              }
+            },
           },
           outrasDespesas: {
             type: 'number',
