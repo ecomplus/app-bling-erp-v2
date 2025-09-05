@@ -311,7 +311,10 @@
               },
               "unidade": {
                 "type": "string",
-                "enum": ["REAL", "PERCENTUAL"],
+                "enum": [
+                  "REAL",
+                  "PERCENTUAL"
+                ],
                 "default": "REAL",
                 "title": "Unidade do desconto"
               }
