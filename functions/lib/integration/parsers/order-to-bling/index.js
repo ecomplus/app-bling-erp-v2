@@ -22,6 +22,10 @@ module.exports = (order, blingOrderNumber, blingStore, appData, customerIdBling,
       }
     }
 
+    if (appData.vendedor) {
+      blingOrder.vendedor = appData.vendedor
+    }
+
     const shippingLine = order.shipping_lines && order.shipping_lines[0]
     const transaction = order.transactions && order.transactions[0]
     const shippingAddress = shippingLine && shippingLine.to
