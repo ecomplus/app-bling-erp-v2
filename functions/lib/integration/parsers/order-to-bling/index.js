@@ -21,6 +21,27 @@ module.exports = (order, blingOrderNumber, blingStore, appData, customerIdBling,
         id: Number(blingStore)
       }
     }
+    
+    if (appData.bling_order_data) {
+      for (const field in appData.bling_order_data) {
+        let value = appData.bling_order_data[field]
+        switch (value) {
+          case undefined:
+          case '':
+          case null:
+            break
+          default:
+            if (typeof value === 'string') {
+              value = value.trim()
+              if (value) {
+                blingOrder[field] = value
+              }
+            } else {
+              blingOrder[field] = value
+            }
+        }
+      }
+    }
 
     const shippingLine = order.shipping_lines && order.shipping_lines[0]
     const transaction = order.transactions && order.transactions[0]
