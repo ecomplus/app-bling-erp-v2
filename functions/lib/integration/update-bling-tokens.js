@@ -7,7 +7,7 @@ const upsertBlingAccessToken = require('../bling-auth/create-access')
 const listStoreIds = () => {
   const storeIds = []
   const date = new Date()
-  date.setHours(date.getHours() - 48)
+  date.setHours(date.getHours() - 72)
   return firestore()
     .collection('ecomplus_app_auth')
     .where('updated_at', '>', firestore.Timestamp.fromDate(date))
