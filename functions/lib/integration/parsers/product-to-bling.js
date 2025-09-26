@@ -10,8 +10,8 @@ module.exports = (product, originalBlingProduct, blingProductCode, blingStore, a
     situacao: product.available && product.visible ? 'A' : 'I',
     formato: isVariations ? 'V' : 'S',
     preco: ecomUtils.price(product),
-    descricaoCurta: product.body_html || product.short_description || product.body_text,
-    descricaoComplementar: product.short_description,
+    descricaoCurta: product.short_description,
+    descricaoComplementar: product.body_html || product.body_text,
     unidade: originalBlingProduct && originalBlingProduct.unidade
       ? originalBlingProduct.unidade
       : product.measurement && product.measurement.unit !== 'oz' && product.measurement.unit !== 'ct'
