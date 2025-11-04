@@ -206,7 +206,16 @@ const app = {
         type: 'boolean',
         default: false,
         title: 'Desabilitar envio de número do pedido',
-        description: 'Número do pedido loja virtual pode ser repetido.'
+        description: 'Número do pedido loja virtual pode ser repetido'
+      },
+      hide: true
+    },
+    disable_buyer_inscription: {
+      schema: {
+        type: 'boolean',
+        default: false,
+        title: 'Desabilitar envio IE em pedidos',
+        description: 'Ignora o número de inscrição estadual do cliente em novos pedidos'
       },
       hide: true
     },

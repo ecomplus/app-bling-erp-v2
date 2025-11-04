@@ -36,8 +36,14 @@ module.exports = async (blingAxios, appData, order) => {
     if (buyer.doc_number && buyer.doc_number.length <= 18) {
       blingCustomer.numeroDocumento = buyer.doc_number
     }
-    if (buyer.inscription_number && buyer.inscription_number.length <= 18) {
-      blingCustomer.ie = buyer.inscription_number
+    if (!appData.disable_buyer_inscription) {
+      if (
+        buyer.inscription_number &&
+        buyer.inscription_number.length <= 18 &&
+        buyer.inscription_type !== 'Municipal'
+      ) {
+        blingCustomer.ie = buyer.inscription_number
+      }
     }
     if (buyer.main_email && buyer.main_email.length <= 60) {
       blingCustomer.email = buyer.main_email

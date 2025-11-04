@@ -21,7 +21,7 @@ module.exports = (order, blingOrderNumber, blingStore, appData, customerIdBling,
         id: Number(blingStore)
       }
     }
-    
+
     if (appData.bling_order_data) {
       for (const field in appData.bling_order_data) {
         let value = appData.bling_order_data[field]
