@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.2.0](https://github.com/ecomplus/application-starter/compare/v1.1.0...v1.2.0) (2025-11-04)
+
+
+### Features
+
+* new option to skip sending buyer inscription number on new orders [[#42](https://github.com/ecomplus/application-starter/issues/42)] ([3104da5](https://github.com/ecomplus/application-starter/commit/3104da56751aaa48d9df540ad5e8865782e34d12))
+
+
+### Bug Fixes
+
+* better mapping product descriptions ([5c6470c](https://github.com/ecomplus/application-starter/commit/5c6470c2cdbb3a5077218c986a961a8107103ade))
+
 ## [1.1.0](https://github.com/ecomplus/application-starter/compare/v1.0.0...v1.1.0) (2025-09-05)
 
 
