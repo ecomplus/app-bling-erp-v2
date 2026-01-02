@@ -47,6 +47,7 @@ module.exports = async (blingAxios, appData, order) => {
     }
     if (buyer.main_email && buyer.main_email.length <= 60) {
       blingCustomer.email = buyer.main_email
+      blingCustomer.emailNotaFiscal = buyer.main_email
     }
     if (buyer.phones) {
       ;['celular', 'tel'].forEach((blingCustomerField, i) => {
