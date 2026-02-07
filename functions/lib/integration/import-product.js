@@ -92,7 +92,7 @@ const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, prod
     })
 }
 
-module.exports = async ({ appSdk, storeId, auth }, _blingStore, blingDeposit, queueEntry, appData, _, isHiddenQueue) => {
+module.exports = async ({ appSdk, storeId, auth }, _blingStore, blingDeposit, queueEntry, appData, canCreateNew, isHiddenQueue) => {
   const [sku, productId] = String(queueEntry.nextId).split(';:')
   const { client_id: clientId, client_secret: clientSecret } = appData
 
@@ -176,15 +176,18 @@ module.exports = async ({ appSdk, storeId, auth }, _blingStore, blingDeposit, qu
     })
 
     .then(payload => {
-      if (!payload && !appData.import_product) {
+      if (!payload && (!appData.import_product || canCreateNew === false)) {
         const err = new Error('Skip')
         err.isHiddenQueue = isHiddenQueue
         err._payload = payload
         throw err
       }
+      if (!payload) {
+        return { product: null }
+      }
       const { product } = payload
 
-      if (!product && (isHiddenQueue || productId) && !appData.import_product) {
+      if (!product && (isHiddenQueue || productId) && (!appData.import_product || canCreateNew === false)) {
         const err = new Error('Skip')
         err.isHiddenQueue = isHiddenQueue
         err._payload = payload
@@ -266,7 +269,50 @@ module.exports = async ({ appSdk, storeId, auth }, _blingStore, blingDeposit, qu
           throw new Error(err)
         })
 
-      const { product, variationId } = payload
+      let { product, variationId } = payload
+
+      // Fallback: if variation SKU search failed, try finding by parent product SKU
+      if (!product && blingProduct && blingProduct.codigo && blingProduct.codigo !== sku) {
+        const parentSku = blingProduct.codigo
+        logger.info(`#${storeId} variation SKU "${sku}" not found, trying parent SKU "${parentSku}"`)
+        const fallbackProduct = await ecomClient.search({
+          storeId,
+          url: '/items.json',
+          data: {
+            size: 1,
+            query: {
+              bool: {
+                must: {
+                  term: { skus: parentSku }
+                }
+              }
+            }
+          }
+        }).then(({ data }) => {
+          const hit = Array.isArray(data.hits.hits) && data.hits.hits[0]
+          if (hit) {
+            return ecomClient.store({
+              storeId,
+              url: `/products/${hit._id}.json`
+            }).then(({ data }) => data)
+          }
+          return null
+        }).catch(err => {
+          logger.warn(`#${storeId} fallback search by parent SKU failed`, err.message)
+          return null
+        })
+
+        if (fallbackProduct) {
+          product = fallbackProduct
+          if (product.variations && product.variations.length) {
+            const variation = product.variations.find(v => v.sku === sku)
+            if (variation) {
+              variationId = variation._id
+            }
+          }
+        }
+      }
+
       const isStockOnly = Boolean(product && !(appData.update_product || appData.update_product_auto))
       return createUpdateProduct({ appSdk, storeId, auth }, appData, sku, product, variationId, blingDeposit, blingProduct, isStockOnly)
     })
