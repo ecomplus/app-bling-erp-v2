@@ -29,13 +29,17 @@ const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, prod
           quantity += !Number.isNaN(saldo) ? saldo : 0
         }
       })
+      logger.info(`#${storeId} [STOCK_DEBUG] sku=${sku} has_stock_reserve=${appData.has_stock_reserve} calculatedQuantity=${quantity} fromDeposits=true`)
       blingItem.estoqueAtual = quantity
       delete blingItem.depositos
+    } else {
+      logger.info(`#${storeId} [STOCK_DEBUG] sku=${sku} estoqueAtual=${blingItem.estoqueAtual} hasDepositos=${Array.isArray(blingItem.depositos)} fromDeposits=false`)
     }
   })
 
   const blingProductFind = !variationId ? blingProduct : blingItems.find(item => item.codigo === sku)
   let quantity = Number(blingProductFind.estoqueAtual)
+  logger.info(`#${storeId} [STOCK_DEBUG] sku=${sku} finalQuantity=${quantity}`)
 
   if (product && (isStockOnly === true || !appData.update_product || variationId)) {
     if (!isNaN(quantity)) {
@@ -242,13 +246,16 @@ module.exports = async ({ appSdk, storeId, auth }, _blingStore, blingDeposit, qu
               const blingProductStoke = await bling.get(stokeEndpoint)
                 .then(({ data: { data } }) => data)
 
+              logger.info(`#${storeId} [STOCK_DEBUG] sku=${sku} blingProductId=${blingProductData?.id} stockResponse=${JSON.stringify(blingProductStoke)}`)
+
               if (blingProductData) {
                 if (blingProductStoke.length) {
                   const stokeProduct = blingProductStoke.find(stoke => stoke.produto.id === blingProductData.id)
                   if (stokeProduct) {
+                    logger.info(`#${storeId} [STOCK_DEBUG] sku=${sku} depositos=${JSON.stringify(stokeProduct.depositos)} saldoFisicoTotal=${stokeProduct.saldoFisicoTotal} saldoVirtualTotal=${stokeProduct.saldoVirtualTotal}`)
                     Object.assign(blingProductData, { depositos: stokeProduct.depositos })
                   }
-                  if (blingProductData.variacoes.length) {
+                  if (blingProductData.variacoes?.length) {
                     blingProductData.variacoes.forEach(variation => {
                       const stokeVariation = blingProductStoke.find(stoke => stoke.produto.id === variation.id)
                       if (stokeVariation) {
