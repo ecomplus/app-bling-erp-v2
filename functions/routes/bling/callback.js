@@ -2,15 +2,14 @@ const { Timestamp, getFirestore } = require('firebase-admin/firestore')
 const { logger } = require('../../context')
 const { nameCollectionEvents } = require('../../__env')
 const checkApiBling = require('../../lib/bling-auth/check-enable-api')
-// const getAppData = require('./../../lib/store-api/get-app-data')
+const getAppData = require('./../../lib/store-api/get-app-data')
 
 exports.post = async ({ appSdk, admin }, req, res) => {
   try {
     // const blingToken = req.query.token
     const storeId = parseInt(req.query.store_id, 10)
     if (storeId > 100 && req.body) {
-      await appSdk.getAuth(storeId)
-      // const appData = await getAppData({ appSdk, storeId, auth })
+      const auth = await appSdk.getAuth(storeId)
 
       const isApiBlingOk = await checkApiBling(storeId)
 
@@ -18,6 +17,8 @@ exports.post = async ({ appSdk, admin }, req, res) => {
         logger.warn('> Error in request to api Bling')
         return res.sendStatus(403)
       }
+
+      const appData = await getAppData({ appSdk, storeId, auth })
 
       logger.info(`storeId: ${storeId} ${JSON.stringify(req.body)}`)
 
@@ -71,7 +72,8 @@ exports.post = async ({ appSdk, admin }, req, res) => {
               ...body,
               resourceId,
               queue: 'skus',
-              _blingId: id
+              _blingId: id,
+              canCreateNew: appData.import_product === true
             }, { merge: true })
               .catch(logger.error)
             )
