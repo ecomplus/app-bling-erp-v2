@@ -5,7 +5,7 @@ module.exports = (accessToken, clientId, clientSecret) => {
   }
 
   console.log('>>> Request with ', accessToken ? ` token: ${accessToken}` : 'Basic Auth', ` ${new Date().toISOString()}`)
-  const baseURL = 'https://www.bling.com.br/Api/v3'
+  const baseURL = 'https://api.bling.com.br/Api/v3'
   if (accessToken) {
     headers = {
       'Content-Type': 'application/json',
