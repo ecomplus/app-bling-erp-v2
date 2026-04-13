@@ -23,8 +23,9 @@ module.exports = (clientId, clientSecret, code, storeId, refreshToken) => new Pr
         logger.error(`# ${storeId} => ${err.response?.data && JSON.stringify(err.response.data)}`)
         if (!isRetry && err.response && err.response.status >= 429) {
           setTimeout(() => request(true), 7000)
+        } else {
+          reject(err)
         }
-        reject(err)
       })
   }
   request()
