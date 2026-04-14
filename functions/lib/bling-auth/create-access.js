@@ -64,22 +64,33 @@ module.exports = async function (clientId, clientSecret, storeId, tokenExpiratio
         }, { merge: true })
         accessToken = data.access_token
       } catch (err) {
+        const isInvalidGrant = err.response?.data?.error?.type === 'invalid_grant'
+
         logger.warn(`Cant refresh Bling OAuth token ${JSON.stringify({
-          url: err.config.url,
-          body: err.config.data,
-          response: err.response.data,
-          status: err.response.status
+          url: err.config?.url,
+          body: err.config?.data,
+          response: err.response?.data,
+          status: err.response?.status
         })}`)
-        const doc = await docRef.get()
 
-        const countErr = doc.data().countErr || 0
-
-        if (countErr > 3) {
+        if (isInvalidGrant) {
           await docRef.set({
             isBloqued: true,
             updatedAt: now
           }, { merge: true }).catch(logger.error)
+        } else {
+          const doc = await docRef.get()
+          const countErr = (doc.data().countErr || 0) + 1
+          if (countErr > 3) {
+            await docRef.set({
+              isBloqued: true,
+              updatedAt: now
+            }, { merge: true }).catch(logger.error)
+          } else {
+            await docRef.set({ countErr }, { merge: true }).catch(logger.error)
+          }
         }
+
         throw err
       }
     }

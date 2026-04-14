@@ -4,7 +4,7 @@ const { logger } = require('../../context')
 module.exports = (clientId, clientSecret, code, storeId, refreshToken) => new Promise((resolve, reject) => {
   //  https://developer.bling.com.br/aplicativos#fluxo-de-autoriza%C3%A7%C3%A3o
   const axios = require('./create-axios')(undefined, clientId, clientSecret)
-  const request = isRetry => {
+  const request = (retryCount = 0) => {
     const path = '/oauth/token'
     logger.info(`>> Create Auth with ${refreshToken ? 'refresh_token' : 'code'}`)
     const grandType = {
@@ -21,12 +21,13 @@ module.exports = (clientId, clientSecret, code, storeId, refreshToken) => new Pr
       .catch(err => {
         logger.error(`> Deu erro s:${storeId} => ${JSON.stringify(err)}`)
         logger.error(`# ${storeId} => ${err.response?.data && JSON.stringify(err.response.data)}`)
-        if (!isRetry && err.response && err.response.status >= 429) {
-          setTimeout(() => request(true), 7000)
+        if (retryCount < 2 && err.response?.status === 429) {
+          const delay = retryCount === 0 ? 15000 : 30000
+          setTimeout(() => request(retryCount + 1), delay)
         } else {
           reject(err)
         }
       })
   }
-  request()
+  request(0)
 })
