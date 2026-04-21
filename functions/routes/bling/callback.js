@@ -77,6 +77,25 @@ exports.post = async ({ appSdk, admin }, req, res) => {
             )
           })
         }
+
+        if (retorno.produtos && retorno.produtos.length) {
+          retorno.produtos.forEach(({ produto }) => {
+            const { id, codigo } = produto
+            const resourceId = `${codigo};:`
+            const docRef = getFirestore()
+              .doc(`queue/${storeId}/${nameCollectionEvents}/product_${id}`)
+            promises.push(docRef.set({
+              ...body,
+              resourceId,
+              queue: 'skus',
+              _blingId: id,
+              canCreateNew: true,
+            }, { merge: true })
+              .catch(logger.error)
+            )
+          })
+        }
+
         await Promise.all(promises)
         return res.sendStatus(200)
         /*
