@@ -4,7 +4,7 @@ const { getFirestore, Timestamp } = require('firebase-admin/firestore')
 const blingAuth = require('../../lib/bling-auth/create-auth')
 const Bling = require('../../lib/bling-auth/client')
 const { logger } = require('../../context')
-// const { baseUri } = require('./../../__env')
+const { baseUri } = require('./../../__env')
 
 const firestoreColl = 'bling_tokens'
 exports.get = async ({ appSdk, admin }, req, res) => {
@@ -41,6 +41,22 @@ exports.get = async ({ appSdk, admin }, req, res) => {
                 await updateAppData({ appSdk, storeId, auth }, { other_config: otherConfig }, true)
                   .catch(err => logger.error(err))
               }
+
+              const tokenDoc = await getFirestore().doc(`${firestoreColl}/${storeId}`).get()
+              const existingWebhookId = tokenDoc.data()?.productWebhookId
+              if (!existingWebhookId) {
+                const webhookUrl = `${baseUri}/bling/callback?store_id=${storeId}`
+                await blingApi.post('/webhooks', { url: webhookUrl, evento: 'produto', situacoes: [] })
+                  .then(({ data }) => {
+                    const webhookId = data?.data?.id
+                    if (webhookId) {
+                      logger.info(`#${storeId} Webhook de produto registrado: ${webhookId}`)
+                      return getFirestore().doc(`${firestoreColl}/${storeId}`).update({ productWebhookId: webhookId })
+                    }
+                  })
+                  .catch(err => logger.warn(`#${storeId} Falha ao registrar webhook de produto: ${err.message}`))
+              }
+
               return res.status(200).redirect('https://app.e-com.plus/#/apps/edit/102418/')
             })
         } catch (error) {
