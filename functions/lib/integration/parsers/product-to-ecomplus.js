@@ -367,10 +367,9 @@ module.exports = (blingProduct, variations, storeId, auth, isNew = true, appData
       }
       const promises = []
       try {
-        ;[
-          ...blingProduct.midia.imagens.externas,
-          ...blingProduct.midia.imagens.internas
-        ].forEach(({ link }) => {
+        const externas = Array.isArray(blingProduct.midia.imagens.externas) ? blingProduct.midia.imagens.externas : []
+        const internas = Array.isArray(blingProduct.midia.imagens.internas) ? blingProduct.midia.imagens.internas : []
+        ;[...externas, ...internas].forEach(({ link }) => {
           if (typeof link === 'string' && link.startsWith('http')) {
             promises.push(tryImageUpload(storeId, auth, link, product))
           }
