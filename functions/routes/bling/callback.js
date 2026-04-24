@@ -21,6 +21,31 @@ exports.post = async ({ appSdk, admin }, req, res) => {
 
       logger.info(`storeId: ${storeId} ${JSON.stringify(req.body)}`)
 
+      // Webhook v3 format: { event: "product.created", data: { id, codigo, ... } }
+      const { event: blingEvent, data: blingEventData } = req.body
+      if (blingEvent && blingEvent.startsWith('product.')) {
+        const { id, codigo } = blingEventData || {}
+        if (id) {
+          const now = Timestamp.now()
+          const resourceId = `${codigo || ''};:`
+          const docRef = getFirestore()
+            .doc(`queue/${storeId}/${nameCollectionEvents}/product_${id}`)
+          await docRef.set({
+            eventBy: 'bling',
+            storeId,
+            action: 'importation',
+            createdAt: now,
+            mustUpdateAppQueue: false,
+            canCreateNew: blingEvent === 'product.created',
+            isHiddenQueue: true,
+            resourceId,
+            queue: 'skus',
+            _blingId: id
+          }, { merge: true }).catch(logger.error)
+        }
+        return res.sendStatus(200)
+      }
+
       let { retorno } = req.body
       if (!retorno && typeof req.body.data === 'string') {
         try {
@@ -72,24 +97,6 @@ exports.post = async ({ appSdk, admin }, req, res) => {
               resourceId,
               queue: 'skus',
               _blingId: id
-            }, { merge: true })
-              .catch(logger.error)
-            )
-          })
-        }
-
-        if (retorno.produtos && retorno.produtos.length) {
-          retorno.produtos.forEach(({ produto }) => {
-            const { id, codigo } = produto
-            const resourceId = `${codigo};:`
-            const docRef = getFirestore()
-              .doc(`queue/${storeId}/${nameCollectionEvents}/product_${id}`)
-            promises.push(docRef.set({
-              ...body,
-              resourceId,
-              queue: 'skus',
-              _blingId: id,
-              canCreateNew: true,
             }, { merge: true })
               .catch(logger.error)
             )
