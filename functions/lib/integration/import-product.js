@@ -43,6 +43,9 @@ const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, prod
 
   // Products created via import_product always get a full update (bypasses update_product=false)
   const isBlingProductUpdate = !!(blingProductId && appData.import_product && product)
+  if (isBlingProductUpdate) {
+    isStockOnly = false
+  }
 
   if (product && (isStockOnly === true || (!appData.update_product && !isBlingProductUpdate) || variationId)) {
     if (!isNaN(quantity)) {
