@@ -36,7 +36,7 @@ exports.post = async ({ appSdk, admin }, req, res) => {
             action: 'importation',
             createdAt: now,
             mustUpdateAppQueue: false,
-            canCreateNew: blingEvent === 'product.created',
+            canCreateNew: blingEvent !== 'product.deleted',
             isHiddenQueue: true,
             resourceId,
             queue: 'skus',

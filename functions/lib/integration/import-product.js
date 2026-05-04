@@ -4,7 +4,7 @@ const { logger } = require('./../../context')
 const Bling = require('../bling-auth/client')
 const parseProduct = require('./parsers/product-to-ecomplus')
 
-const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, product, variationId, blingDeposit, blingProduct, isStockOnly, blingProductId) => {
+const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, product, variationId, blingDeposit, blingProduct, isStockOnly) => {
   // logger.info(`Bling product for #${storeId} ${sku}`, { blingProduct })
   let blingItems = [blingProduct]
   if (Array.isArray(blingProduct.variacoes)) {
@@ -41,13 +41,7 @@ const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, prod
   let quantity = Number(blingProductFind.estoqueAtual)
   logger.info(`#${storeId} [STOCK_DEBUG] sku=${sku} finalQuantity=${quantity}`)
 
-  // Products created via import_product always get a full update (bypasses update_product=false)
-  const isBlingProductUpdate = !!(blingProductId && appData.import_product && product)
-  if (isBlingProductUpdate) {
-    isStockOnly = false
-  }
-
-  if (product && (isStockOnly === true || (!appData.update_product && !isBlingProductUpdate) || variationId)) {
+  if (product && (isStockOnly === true || !appData.update_product || variationId)) {
     if (!isNaN(quantity)) {
       if (quantity < 0) {
         quantity = 0
@@ -82,8 +76,7 @@ const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, prod
   // const category = await getCategories(appData, storeId)
   // logger.info(`> Category with store ${JSON.stringify(category || {})}`)
 
-  const shouldIncludeImages = method === 'POST' || (isBlingProductUpdate && !product?.pictures?.length)
-  return parseProduct(blingProduct, product && product.variations, storeId, auth, shouldIncludeImages, appData)
+  return parseProduct(blingProduct, product && product.variations, storeId, auth, method === 'POST', appData)
     .then(bodyProduct => {
       if (!isNaN(quantity)) {
         bodyProduct.quantity = quantity >= 0 ? quantity : 0
@@ -345,7 +338,7 @@ module.exports = async ({ appSdk, storeId, auth }, _blingStore, blingDeposit, qu
       }
 
       const isStockOnly = Boolean(product && !(appData.update_product || appData.update_product_auto))
-      return createUpdateProduct({ appSdk, storeId, auth }, appData, sku, product, variationId, blingDeposit, blingProduct, isStockOnly, blingProductId)
+      return createUpdateProduct({ appSdk, storeId, auth }, appData, sku, product, variationId, blingDeposit, blingProduct, isStockOnly)
     })
     .catch(err => {
       if (err.message === 'Skip') {
