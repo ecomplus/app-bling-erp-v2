@@ -41,7 +41,7 @@ const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, prod
   let quantity = Number(blingProductFind.estoqueAtual)
   logger.info(`#${storeId} [STOCK_DEBUG] sku=${sku} finalQuantity=${quantity}`)
 
-  if (product && (isStockOnly === true || !appData.update_product || variationId)) {
+  if (product && (isStockOnly === true || variationId)) {
     if (!isNaN(quantity)) {
       if (quantity < 0) {
         quantity = 0
@@ -76,7 +76,7 @@ const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, prod
   // const category = await getCategories(appData, storeId)
   // logger.info(`> Category with store ${JSON.stringify(category || {})}`)
 
-  return parseProduct(blingProduct, product && product.variations, storeId, auth, method === 'POST', appData)
+  return parseProduct(blingProduct, product && product.variations, storeId, auth, method === 'POST', appData, product && product.pictures)
     .then(bodyProduct => {
       if (!isNaN(quantity)) {
         bodyProduct.quantity = quantity >= 0 ? quantity : 0

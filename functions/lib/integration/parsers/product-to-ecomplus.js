@@ -10,6 +10,18 @@ const removeAccents = str => str.replace(/áàãâÁÀÃÂ/g, 'a')
   .replace(/úÚ/g, 'u')
   .replace(/çÇ/g, 'c')
 
+const getUrlFilename = url => {
+  try {
+    return new URL(url).pathname
+      .replace(/.*\//, '')
+      .replace(/\.[^.]+$/, '')
+      .replace(/-(zoom|big|medium|small|normal)$/, '')
+      .toLowerCase()
+  } catch (_) {
+    return url
+  }
+}
+
 const hexaColors = color => {
   const lowerCaseColor = removeAccents(color.toLowerCase())
 
@@ -152,7 +164,7 @@ const tryImageUpload = (storeId, auth, originImgUrl, product) => new Promise(res
   return picture
 })
 
-module.exports = (blingProduct, variations, storeId, auth, isNew = true, appData) => new Promise((resolve, reject) => {
+module.exports = (blingProduct, variations, storeId, auth, isNew = true, appData, existingPictures) => new Promise((resolve, reject) => {
   try {
     const sku = blingProduct.codigo || String(blingProduct.id)
     const name = (blingProduct.nome || sku).trim()
@@ -361,29 +373,36 @@ module.exports = (blingProduct, variations, storeId, auth, isNew = true, appData
       })
     }
 
-    if (isNew && blingProduct.midia?.imagens) {
-      if (!product.pictures) {
-        product.pictures = []
-      }
-      const promises = []
-      try {
-        const externas = Array.isArray(blingProduct.midia.imagens.externas) ? blingProduct.midia.imagens.externas : []
-        const internas = Array.isArray(blingProduct.midia.imagens.internas) ? blingProduct.midia.imagens.internas : []
-        ;[...externas, ...internas].forEach(({ link }) => {
-          if (typeof link === 'string' && link.startsWith('http')) {
-            promises.push(tryImageUpload(storeId, auth, link, product))
+    if (blingProduct.midia?.imagens) {
+      product.pictures = Array.isArray(existingPictures) ? [...existingPictures] : []
+
+      const existingByFilename = {}
+      product.pictures.forEach(pic => {
+        Object.values(pic).forEach(v => {
+          if (v && typeof v.url === 'string') {
+            existingByFilename[getUrlFilename(v.url)] = pic
           }
         })
-      } catch (err) {
-        logger.warn(err)
-      }
-      return Promise.all(promises).then((images) => {
+      })
+
+      const externas = Array.isArray(blingProduct.midia.imagens.externas) ? blingProduct.midia.imagens.externas : []
+      const internas = Array.isArray(blingProduct.midia.imagens.internas) ? blingProduct.midia.imagens.internas : []
+      const blingImages = [...externas, ...internas]
+        .filter(({ link }) => typeof link === 'string' && link.startsWith('http'))
+
+      const imagePromises = blingImages.map(({ link }) => {
+        const existing = existingByFilename[getUrlFilename(link)]
+        if (existing) return Promise.resolve(existing)
+        return tryImageUpload(storeId, auth, link, product)
+      })
+
+      return Promise.all(imagePromises).then(allImages => {
         if (Array.isArray(product.variations) && product.variations.length) {
           product.variations.forEach(variation => {
             if (variation.picture_id || variation.picture_id === 0) {
-              const variationImage = images[variation.picture_id]
-              if (variationImage?._id) {
-                variation.picture_id = variationImage._id
+              const img = allImages[variation.picture_id]
+              if (img?._id) {
+                variation.picture_id = img._id
               } else {
                 delete variation.picture_id
               }
