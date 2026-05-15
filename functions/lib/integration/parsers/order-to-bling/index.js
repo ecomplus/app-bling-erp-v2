@@ -2,6 +2,34 @@ const ecomUtils = require('@ecomplus/utils')
 const parseAddress = require('../address-to-bling')
 const { logger } = require('../../../../context')
 
+const holidays = [
+  '2026-01-01', '2026-02-16', '2026-02-17', '2026-04-03', '2026-04-21',
+  '2026-05-01', '2026-06-04', '2026-07-09', '2026-09-07', '2026-10-12',
+  '2026-11-02', '2026-11-20', '2026-12-24', '2026-12-25', '2026-12-31',
+  '2027-01-01', '2027-02-08', '2027-02-09', '2027-04-02', '2027-04-21',
+  '2027-05-01', '2027-05-27', '2027-07-09', '2027-09-07', '2027-10-12',
+  '2027-11-02', '2027-11-20', '2027-12-24', '2027-12-25', '2027-12-31',
+]
+
+const toDateStr = (d) => d.getUTCFullYear() + '-' +
+  String(d.getUTCMonth() + 1).padStart(2, '0') + '-' +
+  String(d.getUTCDate()).padStart(2, '0')
+
+const isNonWorkingDay = (dateStr) => {
+  const day = new Date(dateStr + 'T12:00:00Z').getUTCDay()
+  return day === 0 || day === 6 || holidays.includes(dateStr)
+}
+
+const addDaysToDate = (startDateStr, days, workingDays) => {
+  const d = new Date(startDateStr + 'T12:00:00Z')
+  let remaining = days
+  while (remaining > 0) {
+    d.setUTCDate(d.getUTCDate() + 1)
+    if (!workingDays || !isNonWorkingDay(toDateStr(d))) remaining--
+  }
+  return toDateStr(d)
+}
+
 module.exports = (order, blingOrderNumber, blingStore, appData, customerIdBling, paymentTypeId, itemsBling, originalBlingOrder) => {
   try {
     const { amount } = order
@@ -9,7 +37,7 @@ module.exports = (order, blingOrderNumber, blingStore, appData, customerIdBling,
     const blingOrder = {
       numeroLoja: String(order.number),
       data: (order.opened_at || order.created_at).substring(0, 10),
-      numeroPedidoCompra: order._id,
+      numeroPedidoCompra: order.number ? String(order.number) : undefined,
       contato: { id: customerIdBling }
     }
     blingOrder.dataSaida = blingOrder.data
@@ -72,6 +100,18 @@ module.exports = (order, blingOrderNumber, blingStore, appData, customerIdBling,
     }
 
     if (shippingLine) {
+      const { posting_deadline, delivery_time } = shippingLine
+      if (posting_deadline?.days || delivery_time?.days) {
+        let estimatedDate = (order.opened_at || order.created_at).substring(0, 10)
+        if (posting_deadline?.days) {
+          estimatedDate = addDaysToDate(estimatedDate, posting_deadline.days, posting_deadline.working_days)
+        }
+        if (delivery_time?.days) {
+          estimatedDate = addDaysToDate(estimatedDate, delivery_time.days, delivery_time.working_days)
+        }
+        blingOrder.dataPrevista = estimatedDate
+      }
+
       blingOrder.transporte = {}
       let shippingService
       const blingShipping = appData.parse_shipping
