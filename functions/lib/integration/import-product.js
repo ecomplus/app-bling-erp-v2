@@ -41,7 +41,7 @@ const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, prod
   let quantity = Number(blingProductFind.estoqueAtual)
   logger.info(`#${storeId} [STOCK_DEBUG] sku=${sku} finalQuantity=${quantity}`)
 
-  if (product && (isStockOnly === true || !appData.update_product || variationId)) {
+  if (product && (isStockOnly === true || variationId)) {
     if (!isNaN(quantity)) {
       if (quantity < 0) {
         quantity = 0
@@ -76,7 +76,7 @@ const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, prod
   // const category = await getCategories(appData, storeId)
   // logger.info(`> Category with store ${JSON.stringify(category || {})}`)
 
-  return parseProduct(blingProduct, product && product.variations, storeId, auth, method === 'POST', appData)
+  return parseProduct(blingProduct, product && product.variations, storeId, auth, method === 'POST', appData, product && product.pictures)
     .then(bodyProduct => {
       if (!isNaN(quantity)) {
         bodyProduct.quantity = quantity >= 0 ? quantity : 0
@@ -97,8 +97,25 @@ const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, prod
 }
 
 module.exports = async ({ appSdk, storeId, auth }, _blingStore, blingDeposit, queueEntry, appData, canCreateNew, isHiddenQueue) => {
-  const [sku, productId] = String(queueEntry.nextId).split(';:')
+  let [sku, productId] = String(queueEntry.nextId).split(';:')
   const { client_id: clientId, client_secret: clientSecret } = appData
+
+  if (!sku && queueEntry._blingId) {
+    await new Bling(clientId, clientSecret, storeId).get(`/produtos/${queueEntry._blingId}`)
+      .then(({ data }) => {
+        const blingData = data?.data
+        if (blingData) {
+          sku = blingData.codigo || blingData.variacao?.produtoPai?.codigo || ''
+          logger.info(`#${storeId} resolved SKU "${sku}" from _blingId ${queueEntry._blingId}`)
+        }
+      })
+      .catch(err => logger.warn(`#${storeId} could not resolve SKU from _blingId ${queueEntry._blingId}: ${err.message}`))
+    if (!sku) {
+      const err = new Error('Produto sem SKU, especifique-o para importar.')
+      err.isConfigError = true
+      throw err
+    }
+  }
 
   const findingProduct = productId
     ? ecomClient.store({
@@ -320,7 +337,7 @@ module.exports = async ({ appSdk, storeId, auth }, _blingStore, blingDeposit, qu
         }
       }
 
-      const isStockOnly = Boolean(product && !(appData.update_product || appData.update_product_auto))
+      const isStockOnly = Boolean(product && !canCreateNew && !(appData.update_product || appData.update_product_auto))
       return createUpdateProduct({ appSdk, storeId, auth }, appData, sku, product, variationId, blingDeposit, blingProduct, isStockOnly)
     })
     .catch(err => {
