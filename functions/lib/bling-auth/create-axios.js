@@ -15,6 +15,7 @@ module.exports = (accessToken, clientId, clientSecret) => {
     console.log('> client id ', clientId, ' client secret', clientSecret, ' <')
     headers = {
       Accept: '1.0',
+      'enable-jwt': '1',
       Authorization: 'Basic ' +
         Buffer.from(`${clientId}:${clientSecret}`, 'utf8').toString('base64')
     }
