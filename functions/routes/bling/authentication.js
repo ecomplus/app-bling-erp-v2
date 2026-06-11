@@ -41,6 +41,7 @@ exports.get = async ({ appSdk, admin }, req, res) => {
                 await updateAppData({ appSdk, storeId, auth }, { other_config: otherConfig }, true)
                   .catch(err => logger.error(err))
               }
+
               return res.status(200).redirect('https://app.e-com.plus/#/apps/edit/102418/')
             })
         } catch (error) {
