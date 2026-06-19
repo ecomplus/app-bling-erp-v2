@@ -191,7 +191,7 @@
         "type": "boolean",
         "default": false,
         "title": "Importar produto",
-        "description": "Ao receber callback de estoque, se o produto não existir na loja, criar"
+        "description": "Ao receber evento de produto criado/atualizado no Bling, se não existir na loja, criar automaticamente"
       },
       "hide": true
     },

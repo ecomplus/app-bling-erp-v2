@@ -64,12 +64,22 @@ Você verá informações semelhantes:
 
 
 
-## 2) Habilitar Callback (webhook) do Bling
+## 2) Habilitar Callback de estoque e pedidos (webhook legado)
 
-Para habilitar os callbacks do bling é necessário adicionar um aplicativo no painel do Bling através do seu Marketplace de aplicativos,
+Para habilitar os callbacks de **estoque e pedidos** é necessário adicionar um aplicativo no painel do Bling através do seu Marketplace de aplicativos,
 <a href="https://ajuda.bling.com.br/hc/pt-br/articles/360047064713-Callback-de-altera%C3%A7%C3%A3o-de-situa%C3%A7%C3%A3o" target="_blank">veja aqui como adicionar</a>.
-
 
 * **Tipo de retorno no callback** : _JSON (urlencoded)_
 
 * **URL para os callbacks:** ```https://us-central1-ecom-bling-v2.cloudfunctions.net/app/bling/callback?store_id=SEU_STORE_ID_AQUI```
+
+## 3) Habilitar Webhook de produto (importação automática)
+
+Para usar a opção **"Importar produto"** (criação automática de produtos na loja ao cadastrar no Bling), é necessário configurar um webhook de produto na aba **Webhooks** do seu aplicativo no painel de desenvolvedor do Bling.
+
+* Acesse seu aplicativo em <a href="https://developer.bling.com.br" target="_blank">developer.bling.com.br</a>
+* Vá até a aba **Webhooks**
+* Adicione um novo servidor com a URL abaixo
+* Selecione os eventos **`product.created`** e **`product.updated`**
+
+* **URL para o webhook de produto:** ```https://us-central1-ecom-bling-v2.cloudfunctions.net/app/bling/callback?store_id=SEU_STORE_ID_AQUI```
