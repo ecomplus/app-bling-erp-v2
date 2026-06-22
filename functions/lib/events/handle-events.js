@@ -51,7 +51,7 @@ const handleEvents = async (event) => {
       const blingDeposit = appData.bling_deposit
 
       const handler = integrationHandlers[action][queue.toLowerCase()]
-      const queueEntry = { action, queue, nextId: resourceId, mustUpdateAppQueue }
+      const queueEntry = { action, queue, nextId: resourceId, mustUpdateAppQueue, isHiddenQueue }
       /*
         In some cases when importing products, Bling returns an empty list when searching for the SKU
         (which appears to be a bug in the Bling API, as it is a webhook event from Bling itself).
@@ -91,10 +91,10 @@ const handleEvents = async (event) => {
                 .delete()
             }
 
-            if (err.response?.status === 503) {
+            if (err.response?.status >= 500 || err.response?.status === 429) {
               setTimeout(() => {
                 // send to the end of the queue
-                logger.warn(`> Error 503: ${documentId}`)
+                logger.warn(`> Error ${err.response.status}: ${documentId}`)
                 return docRef.ref
                   .update({
                     processingAt: admin.firestore.FieldValue.delete(),
