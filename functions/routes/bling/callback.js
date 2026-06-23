@@ -21,6 +21,31 @@ exports.post = async ({ appSdk, admin }, req, res) => {
 
       logger.info(`storeId: ${storeId} ${JSON.stringify(req.body)}`)
 
+      // Webhook v3 format: { event: "product.created", data: { id, codigo, ... } }
+      const { event: blingEvent, data: blingEventData } = req.body
+      if (blingEvent && blingEvent.startsWith('product.')) {
+        const { id, codigo } = blingEventData || {}
+        if (id) {
+          const now = Timestamp.now()
+          const resourceId = `${codigo || ''};:`
+          const docRef = getFirestore()
+            .doc(`queue/${storeId}/${nameCollectionEvents}/product_${id}`)
+          await docRef.set({
+            eventBy: 'bling',
+            storeId,
+            action: 'importation',
+            createdAt: now,
+            mustUpdateAppQueue: false,
+            canCreateNew: blingEvent !== 'product.deleted',
+            isHiddenQueue: true,
+            resourceId,
+            queue: 'skus',
+            _blingId: id
+          }, { merge: true }).catch(logger.error)
+        }
+        return res.sendStatus(200)
+      }
+
       let { retorno } = req.body
       if (!retorno && typeof req.body.data === 'string') {
         try {
@@ -77,6 +102,7 @@ exports.post = async ({ appSdk, admin }, req, res) => {
             )
           })
         }
+
         await Promise.all(promises)
         return res.sendStatus(200)
         /*
