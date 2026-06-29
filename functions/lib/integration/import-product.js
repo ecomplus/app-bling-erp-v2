@@ -267,24 +267,20 @@ module.exports = async ({ appSdk, storeId, auth }, blingStore, blingDeposit, que
 
                 if (blingStore && blingProductData.id) {
                   try {
-                    const tabelasRes = await bling.get(`/tabelasDePreco?idLoja=${blingStore}`)
-                    const tabelas = tabelasRes?.data?.data
-                    if (Array.isArray(tabelas) && tabelas.length) {
-                      const idTabela = appData.bling_price_table_id || tabelas[0].id
-                      const itensRes = await bling.get(
-                        `/tabelasDePreco/${idTabela}/itens?idsProdutos[]=${blingProductData.id}`
-                      )
-                      const itens = itensRes?.data?.data
-                      if (Array.isArray(itens) && itens.length) {
-                        const precoLoja = itens[0].preco
-                        if (precoLoja) {
-                          logger.info(`#${storeId} [PRICE_MULTILOJA] sku=${sku} precoBase=${blingProductData.preco} precoLoja=${precoLoja}`)
-                          blingProductData.preco = precoLoja
+                    const produtoLojaRes = await bling.get(`/produtos/lojas?idProduto=${blingProductData.id}&idLoja=${blingStore}`)
+                    const produtosLoja = produtoLojaRes?.data?.data
+                    if (Array.isArray(produtosLoja) && produtosLoja.length) {
+                      const { preco: precoLoja, precoPromocional: precoPromocionalLoja } = produtosLoja[0]
+                      if (precoLoja) {
+                        logger.info(`#${storeId} [PRICE_MULTILOJA] sku=${sku} precoBase=${blingProductData.preco} precoLoja=${precoLoja} precoPromocionalLoja=${precoPromocionalLoja}`)
+                        blingProductData.preco = precoLoja
+                        if (precoPromocionalLoja) {
+                          blingProductData.precoPromocional = precoPromocionalLoja
                         }
                       }
                     }
                   } catch (err) {
-                    logger.warn(`#${storeId} [PRICE_MULTILOJA] erro ao buscar tabela de preço: ${err.message}`)
+                    logger.warn(`#${storeId} [PRICE_MULTILOJA] erro ao buscar preço da loja: ${err.message}`)
                   }
                 }
 
