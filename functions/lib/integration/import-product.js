@@ -96,7 +96,7 @@ const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, prod
     })
 }
 
-module.exports = async ({ appSdk, storeId, auth }, _blingStore, blingDeposit, queueEntry, appData, canCreateNew, isHiddenQueue) => {
+module.exports = async ({ appSdk, storeId, auth }, blingStore, blingDeposit, queueEntry, appData, canCreateNew, isHiddenQueue) => {
   const [sku, productId] = String(queueEntry.nextId).split(';:')
   const { client_id: clientId, client_secret: clientSecret } = appData
 
@@ -262,6 +262,29 @@ module.exports = async ({ appSdk, storeId, auth }, _blingStore, blingDeposit, qu
                         Object.assign(variation, { depositos: stokeVariation.depositos })
                       }
                     })
+                  }
+                }
+
+                if (blingStore && blingProductData.id) {
+                  try {
+                    const tabelasRes = await bling.get(`/tabelasDePreco?idLoja=${blingStore}`)
+                    const tabelas = tabelasRes?.data?.data
+                    if (Array.isArray(tabelas) && tabelas.length) {
+                      const idTabela = appData.bling_price_table_id || tabelas[0].id
+                      const itensRes = await bling.get(
+                        `/tabelasDePreco/${idTabela}/itens?idsProdutos[]=${blingProductData.id}`
+                      )
+                      const itens = itensRes?.data?.data
+                      if (Array.isArray(itens) && itens.length) {
+                        const precoLoja = itens[0].preco
+                        if (precoLoja) {
+                          logger.info(`#${storeId} [PRICE_MULTILOJA] sku=${sku} precoBase=${blingProductData.preco} precoLoja=${precoLoja}`)
+                          blingProductData.preco = precoLoja
+                        }
+                      }
+                    }
+                  } catch (err) {
+                    logger.warn(`#${storeId} [PRICE_MULTILOJA] erro ao buscar tabela de preço: ${err.message}`)
                   }
                 }
 

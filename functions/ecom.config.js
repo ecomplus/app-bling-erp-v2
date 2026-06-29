@@ -165,6 +165,15 @@ const app = {
       },
       hide: true
     },
+    bling_price_table_id: {
+      schema: {
+        type: 'string',
+        maxLength: 50,
+        title: 'ID da tabela de preço no Bling',
+        description: 'Opcional: usar quando a loja multiloja tiver mais de uma tabela de preço associada'
+      },
+      hide: true
+    },
     bling_deposit: {
       schema: {
         type: 'string',
