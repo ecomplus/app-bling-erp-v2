@@ -5,32 +5,37 @@ module.exports = (blingOrder, shippingLines, bling, storeId) => new Promise((res
   }
   if (shippingLines && shippingLines.length) {
     const checkTrackingCodes = ({ codigosRastreamento, transporte }) => {
+      const isGeneratedFallback = existing => {
+        if (!existing) {
+          return true
+        }
+        return existing.code === 'Sem codigo | Consultar no link' ||
+          (existing.link && existing.link.startsWith('https://www.melhorrastreio.com.br/rastreio/'))
+      }
+
       const addTrackingCode = (shippingLine, volume) => {
-        let tracking
-        if (
-          volume &&
-          volume.codigoRastreamento &&
-          (!shippingLine.tracking_codes || !shippingLine.tracking_codes.length)
-        ) {
-          tracking = {
+        if (!volume || (!volume.codigoRastreamento && !volume.urlRastreamento)) {
+          return
+        }
+        const existing = shippingLine.tracking_codes && shippingLine.tracking_codes[0]
+        if (existing && !isGeneratedFallback(existing)) {
+          return
+        }
+        const tracking = volume.codigoRastreamento
+          ? {
             code: String(volume.codigoRastreamento),
             link: volume.urlRastreamento ||
               `https://www.melhorrastreio.com.br/rastreio/${volume.codigoRastreamento}`
           }
-          shippingLine.tracking_codes = [tracking]
-          partialOrder.shipping_lines = shippingLines
-        } else if (
-          volume &&
-          volume.urlRastreamento &&
-          (!shippingLine.tracking_codes || !shippingLine.tracking_codes.length)
-        ) {
-          tracking = {
+          : {
             code: 'Sem codigo | Consultar no link',
             link: volume.urlRastreamento
           }
-          shippingLine.tracking_codes = [tracking]
-          partialOrder.shipping_lines = shippingLines
+        if (existing && existing.code === tracking.code && existing.link === tracking.link) {
+          return
         }
+        shippingLine.tracking_codes = [tracking]
+        partialOrder.shipping_lines = shippingLines
       }
 
       if (transporte && transporte.volumes) {
