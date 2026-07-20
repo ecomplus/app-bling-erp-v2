@@ -54,68 +54,84 @@ const addEventsQueue = async (event) => {
     .limit(1)
     .get()
 
-  if (!oldestEventSnapshot.empty) {
-    const docOldestEvent = oldestEventSnapshot.docs[0]
-    const oldestEvent = docOldestEvent.data()
-    const {
-      storeId,
-      processingAt,
-      attempts
-    } = oldestEvent
+  if (oldestEventSnapshot.empty) {
+    logger.info('> is empty')
+    return null
+  }
 
-    const id = docOldestEvent.id
-    const documentId = `${collectionName}/${id}`
+  const docRef = oldestEventSnapshot.docs[0].ref
+
+  // Single atomic decision point: read + claim happen in the same transaction,
+  // so concurrent executions racing for the same oldest event can't both win.
+  // Losers get { action: 'skip' } and do nothing further.
+  const claim = await admin.firestore().runTransaction(async (tx) => {
+    const snap = await tx.get(docRef)
+    if (!snap.exists) {
+      return { action: 'none' }
+    }
+
+    const { storeId, processingAt, attempts = 0 } = snap.data()
     const now = Timestamp.now()
     const processingTime = processingAt && (now.toMillis() - processingAt.toMillis())
-    const isProcessing = processingTime && processingTime < limitTimeProcessing
-    if (!storeId || attempts > 3) {
-      await deleteEvent(storeId, id) // event starts only on creation
-      await docOldestEvent.ref.delete()
-    } else if (!processingAt) {
-      await createEvent(storeId, id, documentId)
-        .then(async (resp) => {
-          if (resp) {
-            logger.info(`>[${storeId}] Send event ${id} => ${documentId}`)
-            await docOldestEvent.ref.update({
-              processingAt: Timestamp.now()
-            })
-          }
-        })
-        .catch(async (err) => {
-          logger.error(err)
+    const isProcessing = processingTime !== null && processingTime !== undefined && processingTime < limitTimeProcessing
 
-          await docOldestEvent.ref.set({
-            flag: 'Error'
-          }, { merge: true })
+    if (!storeId || attempts > 3) {
+      tx.delete(docRef)
+      return { action: 'deleted', storeId }
+    }
+    if (!processingAt) {
+      tx.update(docRef, { processingAt: now })
+      return { action: 'claim', storeId, id: docRef.id }
+    }
+    if (!isProcessing) {
+      const nextAttempts = attempts + 1
+      if (nextAttempts <= 3) {
+        // send to the end of the queue
+        tx.update(docRef, {
+          processingAt: admin.firestore.FieldValue.delete(),
+          createdAt: now,
+          attempts: nextAttempts
         })
+      } else {
+        tx.delete(docRef)
+      }
+      return { action: 'requeued', storeId }
+    }
+
+    logger.info(`${collectionName}/${docRef.id}, ${processingAt.toDate().toISOString()}, ${processingTime}`)
+    return { action: 'skip', storeId }
+  })
+
+  const documentId = `${collectionName}/${docRef.id}`
+
+  if (claim.action === 'deleted' || claim.action === 'requeued') {
+    await deleteEvent(claim.storeId, docRef.id) // event starts only on creation
+  }
+
+  if (claim.action === 'claim') {
+    try {
+      const created = await createEvent(claim.storeId, claim.id, documentId)
+      if (created) {
+        logger.info(`>[${claim.storeId}] Send event ${claim.id} => ${documentId}`)
+      }
 
       await admin.firestore().doc(`queue/${strStoreId}`).set({
         updatedAt: admin.firestore.FieldValue.delete(),
         lastTimeExecuted: Timestamp.now(),
         lastExecuted: documentId
       }, { merge: true })
-    } else if (!isProcessing) {
-      await deleteEvent(storeId, id) // event starts only on creation
+    } catch (err) {
+      logger.error(err)
 
-      const attempts = (oldestEvent.attempts || 0) + 1
-      if (attempts <= 3) {
-        // send to the end of the queue
-        await docOldestEvent.ref
-          .update({
-            processingAt: admin.firestore.FieldValue.delete(),
-            createdAt: Timestamp.now(),
-            attempts
-          })
-      } else {
-        await deleteEvent(storeId, id) // event starts only on creation
-        await docOldestEvent.ref.delete()
+      // Only flag if the document still exists — avoids recreating a
+      // phantom doc (without createdAt) that would re-trigger the queue.
+      const stillExists = await docRef.get()
+      if (stillExists.exists) {
+        await docRef.set({
+          flag: 'Error'
+        }, { merge: true })
       }
-    } else {
-      // now.toDate().toISOString()
-      logger.info(`${documentId}, ${processingAt.toDate().toISOString()}, ${processingTime}`)
     }
-  } else {
-    logger.info('> is empty')
   }
 
   return null
