@@ -13,6 +13,39 @@ const getLastStatus = records => {
   return statusRecord && statusRecord.status
 }
 
+/*
+  `GET /pedidos/vendas/{id}` never returns `urlRastreamento` on the volume objects,
+  only `codigoRastreamento` -- the Bling webhook payload does include it. Fill it in
+  from the webhook data (saved on the queue entry) when the fresher API fetch lacks it.
+*/
+const mergeWebhookTracking = (blingOrder, webhookTransporte, webhookCodigosRastreamento) => {
+  if (webhookTransporte && webhookTransporte.volumes && blingOrder.transporte && blingOrder.transporte.volumes) {
+    blingOrder.transporte.volumes.forEach((entry, i) => {
+      const volume = entry.volume || entry
+      if (volume.urlRastreamento) {
+        return
+      }
+      const webhookEntry = webhookTransporte.volumes[i]
+      const webhookVolume = webhookEntry && (webhookEntry.volume || webhookEntry)
+      if (
+        webhookVolume &&
+        webhookVolume.urlRastreamento &&
+        (!volume.codigoRastreamento || volume.codigoRastreamento === webhookVolume.codigoRastreamento)
+      ) {
+        volume.urlRastreamento = webhookVolume.urlRastreamento
+      }
+    })
+  }
+  if (
+    webhookCodigosRastreamento &&
+    blingOrder.codigosRastreamento &&
+    !blingOrder.codigosRastreamento.urlRastreamento &&
+    webhookCodigosRastreamento.urlRastreamento
+  ) {
+    blingOrder.codigosRastreamento.urlRastreamento = webhookCodigosRastreamento.urlRastreamento
+  }
+}
+
 module.exports = async ({ appSdk, storeId, auth }, _blingStore, _blingDeposit, queueEntry, appData) => {
   const blingOrderNumber = queueEntry.nextId
   const {
@@ -30,6 +63,7 @@ module.exports = async ({ appSdk, storeId, auth }, _blingStore, _blingDeposit, q
     .then(async ({ data: { data } }) => {
       logger.info(`order :${JSON.stringify(data)}`)
       const blingOrder = data
+      mergeWebhookTracking(blingOrder, queueEntry.webhookTransporte, queueEntry.webhookCodigosRastreamento)
 
       logger.info(`#${storeId} found order ${blingOrder.numero}`)
 
