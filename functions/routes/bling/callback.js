@@ -46,12 +46,20 @@ exports.post = async ({ appSdk, admin }, req, res) => {
         if (retorno.pedidos && retorno.pedidos.length) {
           retorno.pedidos.forEach(({ pedido }) => {
             console.log(`${JSON.stringify(pedido)}`)
-            const { numero } = pedido
+            const { numero, transporte, codigosRastreamento } = pedido
             const resourceId = `${numero}`
             const docRef = getFirestore()
               .doc(`queue/${storeId}/${nameCollectionEvents}/order_${numero}`)
+            const trackingData = {}
+            if (transporte) {
+              trackingData.webhookTransporte = transporte
+            }
+            if (codigosRastreamento) {
+              trackingData.webhookCodigosRastreamento = codigosRastreamento
+            }
             promises.push(docRef.set({
               ...body,
+              ...trackingData,
               resourceId,
               queue: 'order_numbers',
               _blingId: numero
