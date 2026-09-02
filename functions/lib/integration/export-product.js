@@ -61,6 +61,7 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, blingDeposit, queueEntr
         .catch(err => {
           if (err.response && err.response.status === 404) {
             if (blingProductId) {
+              blingProductId = null
               return blingApi.get(`/produtos?${params.toString()}`)
             }
             return { data: [] }
