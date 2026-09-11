@@ -7,7 +7,7 @@
 
 const app = {
   app_id: 102418,
-  title: 'Bling ERP V2 - BETA',
+  title: 'Bling ERP V2',
   slug: 'bling-erp-v2',
   type: 'external',
   state: 'active',

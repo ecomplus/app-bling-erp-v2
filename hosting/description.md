@@ -1,4 +1,4 @@
-# Bling ERP V2 - BETA
+# Bling ERP V2
 
 Aplicativo ainda em versão Beta
 
