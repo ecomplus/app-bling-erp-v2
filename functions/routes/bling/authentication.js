@@ -4,6 +4,7 @@ const { getFirestore, Timestamp } = require('firebase-admin/firestore')
 const blingAuth = require('../../lib/bling-auth/create-auth')
 const Bling = require('../../lib/bling-auth/client')
 const { logger } = require('../../context')
+const { appId } = require('../../__env')
 // const { baseUri } = require('./../../__env')
 
 const firestoreColl = 'bling_tokens'
@@ -41,7 +42,7 @@ exports.get = async ({ appSdk, admin }, req, res) => {
                 await updateAppData({ appSdk, storeId, auth }, { other_config: otherConfig }, true)
                   .catch(err => logger.error(err))
               }
-              return res.status(200).redirect('https://app.e-com.plus/#/apps/edit/102418/')
+              return res.status(200).redirect(`https://app.e-com.plus/#/apps/edit/${appId}/`)
             })
         } catch (error) {
           const { response, config } = error

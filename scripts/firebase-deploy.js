@@ -3,7 +3,8 @@ require('dotenv').config()
 const {
   FIREBASE_TOKEN,
   SERVER_OPERATOR_TOKEN,
-  SERVER_BASE_URI
+  SERVER_BASE_URI,
+  ECOM_APP_ID
 } = process.env
 
 require('./scripts-minification')
@@ -19,6 +20,9 @@ const config = [
 ]
 if (SERVER_BASE_URI) {
   config.push(`server.base_uri=${SERVER_BASE_URI}`)
+}
+if (ECOM_APP_ID) {
+  config.push(`app.id=${ECOM_APP_ID}`)
 }
 
 client.functions.config.set(config, { project })
