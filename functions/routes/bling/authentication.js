@@ -11,7 +11,7 @@ exports.get = async ({ appSdk, admin }, req, res) => {
   const { query } = req
   const { state, code } = query
   const storeId = parseInt(query.store_id, 10)
-  logger.info(`'>> Store: ${storeId} code: ${code} aplicativo ${state} <<'`)
+  logger.info(`'>> Store: ${storeId} aplicativo ${state} <<'`)
   if (storeId > 100 && code) {
     return appSdk.getAuth(storeId)
       .then(async (auth) => {
@@ -19,7 +19,7 @@ exports.get = async ({ appSdk, admin }, req, res) => {
           getAppData({ appSdk, storeId, auth })
             .then(async (appData) => {
               const { client_id: clientId, client_secret: clientSecret } = appData
-              logger.info(`Pass variables ${JSON.stringify({ clientId, clientSecret, code, storeId })}`)
+              logger.info(`Bling client id ***${String(clientId).slice(-4)} store ${storeId}`)
               await blingAuth(clientId, clientSecret, code, storeId).then(async (data) => {
                 const now = Timestamp.now()
                 await getFirestore().doc(`${firestoreColl}/${storeId}`).set({
