@@ -5,8 +5,10 @@
  * Ref.: https://developers.e-com.plus/docs/api/#/store/applications/
  */
 
+const { appId } = require('./__env')
+
 const app = {
-  app_id: 102418,
+  app_id: appId,
   title: 'Bling ERP V2 - BETA',
   slug: 'bling-erp-v2',
   type: 'external',
