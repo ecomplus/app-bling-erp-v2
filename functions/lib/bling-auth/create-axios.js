@@ -4,7 +4,7 @@ module.exports = (accessToken, clientId, clientSecret) => {
   let headers = {
   }
 
-  console.log('>>> Request with ', accessToken ? ` token: ${accessToken}` : 'Basic Auth', ` ${new Date().toISOString()}`)
+  console.log('>>> Request with ', accessToken ? 'Bearer token' : 'Basic Auth', ` ${new Date().toISOString()}`)
   const baseURL = 'https://api.bling.com.br/Api/v3'
   if (accessToken) {
     headers = {
@@ -12,7 +12,9 @@ module.exports = (accessToken, clientId, clientSecret) => {
       Authorization: `Bearer ${accessToken}`
     }
   } else if (clientId && clientSecret) {
-    console.log('> client id ', clientId, ' client secret', clientSecret, ' <')
+    // Nunca logar o client_secret: no app público ele é compartilhado por
+    // todas as lojas, e o log identifica a credencial pelos 4 últimos dígitos.
+    console.log('> client id ', `***${String(clientId).slice(-4)}`, ' <')
     headers = {
       Accept: '1.0',
       'enable-jwt': '1',
