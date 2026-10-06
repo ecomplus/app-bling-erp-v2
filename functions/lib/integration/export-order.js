@@ -216,6 +216,11 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
                     blingOrder,
                     response: err.response.data
                   })
+                  const { status } = err.response
+                  if (status === 429 || status >= 500) {
+                    // falha transitória: propaga para o pedido voltar à fila
+                    throw err
+                  }
                 }
                 logger.error(err)
               })
@@ -276,7 +281,9 @@ module.exports = ({ appSdk, storeId, auth }, blingStore, _blingDeposit, queueEnt
     .catch(err => {
       if (err.response) {
         const { status } = err.response
-        if (status >= 400 && status < 500) {
+        // 429 (rate limit) deve subir para o handle-events reenfileirar,
+        // senão o pedido é dado como exportado sem nunca ter ido ao Bling
+        if (status >= 400 && status < 500 && status !== 429) {
           const msg = `O pedido ${orderId} não existe (:${status})`
           const err = new Error(msg)
           err.isConfigError = true

@@ -14,6 +14,10 @@ module.exports = async (blingAxios, order) => {
       return data.data
     }
   } catch (err) {
+    if (err.response?.status === 429) {
+      // sem os produtos o pedido iria sem produto.id e seria recusado
+      throw err
+    }
     if (err.response) {
       logger.error(JSON.stringify(err.response.data))
     } else {
