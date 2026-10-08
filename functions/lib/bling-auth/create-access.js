@@ -1,4 +1,5 @@
 const createAxios = require('./create-axios')
+const { resolveCredentials } = require('./public-app')
 const blingAuth = require('./create-auth')
 const { Timestamp } = require('firebase-admin/firestore')
 const { logger } = require('../../context')
@@ -30,6 +31,12 @@ module.exports = async function (clientId, clientSecret, storeId, tokenExpiratio
     if (isBloqued) {
       throw new Error('Bling refreshToken is invalid need to update')
     }
+
+    // Token emitido pelo app público renova com a credencial dele. Tokens sem a
+    // marca seguem com a credencial do cadastro da loja, como sempre.
+    const credentials = resolveCredentials(docSnapshot.data(), clientId, clientSecret)
+    clientId = credentials.clientId
+    clientSecret = credentials.clientSecret
 
     if (isRateLimit) {
       // enable daily rate limit
