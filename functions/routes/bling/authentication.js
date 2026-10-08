@@ -5,6 +5,8 @@ const blingAuth = require('../../lib/bling-auth/create-auth')
 const Bling = require('../../lib/bling-auth/client')
 const { logger } = require('../../context')
 const { appId } = require('../../__env')
+const { getPublicApp } = require('../../lib/bling-auth/public-app')
+const connectPublicApp = require('../../lib/bling-auth/connect-public-app')
 // const { baseUri } = require('./../../__env')
 
 const firestoreColl = 'bling_tokens'
@@ -67,6 +69,10 @@ exports.get = async ({ appSdk, admin }, req, res) => {
           res.sendStatus(401)
         }
       })
+  } else if (code && state && getPublicApp()) {
+    // Sem store_id na URL: retorno do app público, que tem redirect fixo. O
+    // caminho acima, dos apps privados com ?store_id=, segue intocado.
+    return connectPublicApp({ appSdk }, req, res)
   } else {
     return res.send({
       status: 404,
