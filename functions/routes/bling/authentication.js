@@ -4,6 +4,9 @@ const { getFirestore, Timestamp } = require('firebase-admin/firestore')
 const blingAuth = require('../../lib/bling-auth/create-auth')
 const Bling = require('../../lib/bling-auth/client')
 const { logger } = require('../../context')
+const { appId } = require('../../__env')
+const { getPublicApp } = require('../../lib/bling-auth/public-app')
+const connectPublicApp = require('../../lib/bling-auth/connect-public-app')
 // const { baseUri } = require('./../../__env')
 
 const firestoreColl = 'bling_tokens'
@@ -11,7 +14,7 @@ exports.get = async ({ appSdk, admin }, req, res) => {
   const { query } = req
   const { state, code } = query
   const storeId = parseInt(query.store_id, 10)
-  logger.info(`'>> Store: ${storeId} code: ${code} aplicativo ${state} <<'`)
+  logger.info(`'>> Store: ${storeId} aplicativo ${state} <<'`)
   if (storeId > 100 && code) {
     return appSdk.getAuth(storeId)
       .then(async (auth) => {
@@ -19,7 +22,7 @@ exports.get = async ({ appSdk, admin }, req, res) => {
           getAppData({ appSdk, storeId, auth })
             .then(async (appData) => {
               const { client_id: clientId, client_secret: clientSecret } = appData
-              logger.info(`Pass variables ${JSON.stringify({ clientId, clientSecret, code, storeId })}`)
+              logger.info(`Bling client id ***${String(clientId).slice(-4)} store ${storeId}`)
               await blingAuth(clientId, clientSecret, code, storeId).then(async (data) => {
                 const now = Timestamp.now()
                 await getFirestore().doc(`${firestoreColl}/${storeId}`).set({
@@ -41,7 +44,7 @@ exports.get = async ({ appSdk, admin }, req, res) => {
                 await updateAppData({ appSdk, storeId, auth }, { other_config: otherConfig }, true)
                   .catch(err => logger.error(err))
               }
-              return res.status(200).redirect('https://app.e-com.plus/#/apps/edit/102418/')
+              return res.status(200).redirect(`https://app.e-com.plus/#/apps/edit/${appId}/`)
             })
         } catch (error) {
           const { response, config } = error
@@ -66,6 +69,10 @@ exports.get = async ({ appSdk, admin }, req, res) => {
           res.sendStatus(401)
         }
       })
+  } else if (code && state && getPublicApp()) {
+    // Sem store_id na URL: retorno do app público, que tem redirect fixo. O
+    // caminho acima, dos apps privados com ?store_id=, segue intocado.
+    return connectPublicApp({ appSdk }, req, res)
   } else {
     return res.send({
       status: 404,
