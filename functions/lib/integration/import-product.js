@@ -265,7 +265,9 @@ module.exports = async ({ appSdk, storeId, auth }, blingStore, blingDeposit, que
                   }
                 }
 
-                if (blingStore && blingProductData.id) {
+                // preço da multiloja só é usado ao criar o produto ou sobrescrever o cadastro
+                const needsStorePrice = !payload?.product || Boolean(appData.update_product && !payload.variationId)
+                if (blingStore && blingProductData.id && needsStorePrice) {
                   try {
                     const produtoLojaRes = await bling.get(`/produtos/lojas?idProduto=${blingProductData.id}&idLoja=${blingStore}`)
                     const produtosLoja = produtoLojaRes?.data?.data
