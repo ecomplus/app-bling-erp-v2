@@ -3,8 +3,10 @@ const ecomUtils = require('@ecomplus/utils')
 const { logger } = require('./../../context')
 const Bling = require('../bling-auth/client')
 const parseProduct = require('./parsers/product-to-ecomplus')
+const { checkUnchangedStock } = require('./utils/callback-stock')
+const { getAppliedStock, setAppliedStock } = require('./utils/applied-stock')
 
-const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, product, variationId, blingDeposit, blingProduct, isStockOnly) => {
+const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, product, variationId, blingDeposit, blingProduct, isStockOnly, stockCheck) => {
   // logger.info(`Bling product for #${storeId} ${sku}`, { blingProduct })
   let blingItems = [blingProduct]
   if (Array.isArray(blingProduct.variacoes)) {
@@ -51,8 +53,19 @@ const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, prod
         endpoint += `/variations/${variationId}`
       }
       endpoint += '/quantity.json'
+      if (stockCheck) {
+        // compara o que seria ignorado com o saldo atual no Bling (validação do modo "só log")
+        const isOk = !stockCheck.isUnchanged || quantity === stockCheck.appliedQuantity
+        logger.info(`#${storeId} [STOCK_SKIP_CHECK] sku=${sku} callback=${stockCheck.callbackQuantity} applied=${stockCheck.appliedQuantity} bling=${quantity} unchanged=${stockCheck.isUnchanged} ok=${isOk}`)
+      }
       logger.info(`#${storeId} ${endpoint}`, { quantity, sku, blingDeposit })
-      return appSdk.apiRequest(storeId, endpoint, 'PUT', { quantity }, auth)
+      const result = await appSdk.apiRequest(storeId, endpoint, 'PUT', { quantity }, auth)
+      await setAppliedStock(storeId, sku, {
+        quantity,
+        productId: product._id,
+        variationId
+      })
+      return result
     }
     return null
   }
@@ -99,6 +112,17 @@ const createUpdateProduct = async ({ appSdk, storeId, auth }, appData, sku, prod
 module.exports = async ({ appSdk, storeId, auth }, blingStore, blingDeposit, queueEntry, appData, canCreateNew, isHiddenQueue) => {
   const [sku, productId] = String(queueEntry.nextId).split(';:')
   const { client_id: clientId, client_secret: clientSecret } = appData
+
+  let stockCheck = null
+  if (queueEntry._blingStock) {
+    // callback de estoque: o saldo já vem no corpo, só consulta o Bling se mudou
+    const appliedStock = await getAppliedStock(storeId, sku)
+    stockCheck = checkUnchangedStock({ storeId, appData, blingDeposit, queueEntry, appliedStock })
+    logger.info(`#${storeId} [STOCK_SKIP] sku=${sku} callback=${stockCheck.callbackQuantity} applied=${stockCheck.appliedQuantity} seen=${stockCheck.seenCount} unchanged=${stockCheck.isUnchanged} reason=${stockCheck.reason} enabled=${stockCheck.isEnabled}`)
+    if (stockCheck.isUnchanged && stockCheck.isEnabled) {
+      return { status: 'unchanged' }
+    }
+  }
 
   const findingProduct = productId
     ? ecomClient.store({
@@ -342,7 +366,7 @@ module.exports = async ({ appSdk, storeId, auth }, blingStore, blingDeposit, que
       }
 
       const isStockOnly = Boolean(product && !(appData.update_product || appData.update_product_auto))
-      return createUpdateProduct({ appSdk, storeId, auth }, appData, sku, product, variationId, blingDeposit, blingProduct, isStockOnly)
+      return createUpdateProduct({ appSdk, storeId, auth }, appData, sku, product, variationId, blingDeposit, blingProduct, isStockOnly, stockCheck)
     })
     .catch(err => {
       if (err.message === 'Skip') {

@@ -2,6 +2,7 @@ const { Timestamp, getFirestore } = require('firebase-admin/firestore')
 const { logger } = require('../../context')
 const { nameCollectionEvents } = require('../../__env')
 const checkApiBling = require('../../lib/bling-auth/check-enable-api')
+const { normalizeBlingStock, getBlingStockKey } = require('../../lib/integration/utils/callback-stock')
 const { getBlingOrderStore } = require('../../lib/integration/utils/order-store')
 // const getAppData = require('./../../lib/store-api/get-app-data')
 
@@ -77,11 +78,15 @@ exports.post = async ({ appSdk, admin }, req, res) => {
             const resourceId = `${codigo};:`
             const docRef = getFirestore()
               .doc(`queue/${storeId}/${nameCollectionEvents}/product_${id}`)
+            const blingStock = normalizeBlingStock(estoque)
             promises.push(docRef.set({
               ...body,
               resourceId,
               queue: 'skus',
-              _blingId: id
+              _blingId: id,
+              _blingStock: blingStock,
+              // saldos distintos recebidos enquanto o evento aguarda na fila
+              _blingStockSeen: { [getBlingStockKey(blingStock)]: true }
             }, { merge: true })
               .catch(logger.error)
             )

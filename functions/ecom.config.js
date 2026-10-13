@@ -290,6 +290,15 @@ const app = {
       },
       hide: true
     },
+    skip_unchanged_stock: {
+      schema: {
+        type: 'boolean',
+        default: false,
+        title: 'Ignorar callbacks de estoque sem alteração',
+        description: 'Reduz requisições à API do Bling, consultando o produto apenas quando o saldo recebido no callback for diferente do último saldo importado'
+      },
+      hide: true
+    },
     export_quantity: {
       schema: {
         type: 'boolean',
