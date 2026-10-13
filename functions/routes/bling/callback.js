@@ -2,6 +2,7 @@ const { Timestamp, getFirestore } = require('firebase-admin/firestore')
 const { logger } = require('../../context')
 const { nameCollectionEvents } = require('../../__env')
 const checkApiBling = require('../../lib/bling-auth/check-enable-api')
+const { getBlingOrderStore } = require('../../lib/integration/utils/order-store')
 // const getAppData = require('./../../lib/store-api/get-app-data')
 
 exports.post = async ({ appSdk, admin }, req, res) => {
@@ -62,7 +63,8 @@ exports.post = async ({ appSdk, admin }, req, res) => {
               ...trackingData,
               resourceId,
               queue: 'order_numbers',
-              _blingId: numero
+              _blingId: numero,
+              _blingStore: getBlingOrderStore(pedido)
             }, { merge: true })
               .catch(logger.error)
             )

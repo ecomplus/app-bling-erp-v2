@@ -41,7 +41,8 @@ const handleEvents = async (event) => {
       isHiddenQueue,
       _blingId,
       webhookTransporte,
-      webhookCodigosRastreamento
+      webhookCodigosRastreamento,
+      _blingStore
     } = data
 
     const appSdk = await getAppSdk()
@@ -62,6 +63,10 @@ const handleEvents = async (event) => {
 
       if (_blingId) {
         queueEntry._blingId = _blingId
+      }
+      // dados recebidos no callback do Bling
+      if (_blingStore) {
+        queueEntry._blingStore = _blingStore
       }
 
       if (resourceId && handler) {

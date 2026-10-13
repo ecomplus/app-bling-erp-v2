@@ -165,6 +165,15 @@ const app = {
       },
       hide: true
     },
+    bling_store_orders_only: {
+      schema: {
+        type: 'boolean',
+        default: false,
+        title: 'Importar apenas pedidos da loja configurada',
+        description: 'Ignora callbacks de pedidos de outras lojas do Bling (ex.: marketplaces), requer o código da loja no Bling'
+      },
+      hide: true
+    },
     bling_deposit: {
       schema: {
         type: 'string',

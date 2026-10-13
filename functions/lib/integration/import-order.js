@@ -2,6 +2,7 @@ const { logger } = require('./../../context')
 const Bling = require('../bling-auth/client')
 const parseOrder = require('./parsers/order-to-ecomplus/')
 const parseStatus = require('./parsers/order-to-ecomplus/status')
+const { checkOrderStore } = require('./utils/order-store')
 
 const getLastStatus = records => {
   let statusRecord
@@ -48,6 +49,16 @@ const mergeWebhookTracking = (blingOrder, webhookTransporte, webhookCodigosRastr
 
 module.exports = async ({ appSdk, storeId, auth }, _blingStore, _blingDeposit, queueEntry, appData) => {
   const blingOrderNumber = queueEntry.nextId
+
+  // pedido de outra loja do Bling (ex.: marketplaces) não existe na plataforma
+  const storeFilter = checkOrderStore(queueEntry._blingStore, appData)
+  if (storeFilter) {
+    logger.info(`#${storeId} [ORDER_STORE_FILTER] numero=${blingOrderNumber} loja=${storeFilter.orderStore} bling_store=${storeFilter.blingStore} enabled=${storeFilter.isEnabled}`)
+    if (storeFilter.isEnabled) {
+      return null
+    }
+  }
+
   const {
     client_id: clientId,
     client_secret: clientSecret
@@ -78,6 +89,10 @@ module.exports = async ({ appSdk, storeId, auth }, _blingStore, _blingDeposit, q
       return appSdk.apiRequest(storeId, listEndpoint, 'GET', null, auth)
         .then(({ response }) => {
           const { result } = response.data
+          if (storeFilter) {
+            // validação do modo "só log": pedidos que seriam ignorados não devem existir na loja
+            logger.info(`#${storeId} [ORDER_STORE_FILTER] numero=${blingOrderNumber} loja=${storeFilter.orderStore} found=${result.length > 0}`)
+          }
           if (!result.length) {
             return null
           }
