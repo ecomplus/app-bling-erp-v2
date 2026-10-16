@@ -127,4 +127,15 @@ describe('handle-events', () => {
     assert.equal(handled[0]._blingStock, undefined)
     assert.equal(db.docs.has(queuePath), false)
   })
+
+  it('token do Bling inválido apaga o evento sem tentar devolvê-lo para a fila', async () => {
+    const onHandle = async () => {
+      throw new Error('Bling refreshToken is invalid need to update')
+    }
+    const { run, db, log } = setup({ onHandle })
+    await run()
+    assert.equal(db.docs.has(queuePath), false)
+    assert.equal(db.docs.has(runningPath), false)
+    assert.equal(log.lines.some(line => line.includes('NOT_FOUND')), false)
+  })
 })

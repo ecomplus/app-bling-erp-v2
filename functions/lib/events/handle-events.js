@@ -131,11 +131,14 @@ const handleEvents = async (event) => {
             logger.error(err)
             const attempts = (data.attempts || 0) + 1
             let message = err.message
+            let isDeleted = false
 
             if (err.message === 'Bling refreshToken is invalid need to update') {
               logger.warn(`> delete: ${documentId}`)
               await docRef.ref
                 .delete()
+                .catch(logger.error)
+              isDeleted = true
             }
 
             if (err.response?.status >= 500 || err.response?.status === 429) {
@@ -157,6 +160,9 @@ const handleEvents = async (event) => {
 
             if (!queueEntry.isNotQueued) {
               log({ appSdk, storeId }, queueEntry, err)
+            }
+            if (isDeleted) {
+              return
             }
 
             // send to the end of the queue
