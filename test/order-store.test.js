@@ -17,6 +17,13 @@ describe('getBlingOrderStore', () => {
     assert.equal(getBlingOrderStore({ loja: {} }), null)
     assert.equal(getBlingOrderStore(undefined), null)
   })
+
+  it('loja 0 (número ou texto) é pedido sem loja', () => {
+    assert.equal(getBlingOrderStore({ loja: '0' }), null)
+    assert.equal(getBlingOrderStore({ loja: 0 }), null)
+    assert.equal(getBlingOrderStore({ loja: { id: 0 } }), null)
+    assert.equal(getBlingOrderStore({ loja: { id: '0' } }), null)
+  })
 })
 
 describe('checkOrderStore', () => {

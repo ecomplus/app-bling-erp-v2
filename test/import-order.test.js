@@ -44,13 +44,14 @@ describe('import-order: #2 pedidos de outras lojas do Bling', () => {
     assert.equal(sdk.requests[0].url.startsWith('/orders.json?'), true)
     const lines = filterLogs(log)
     assert.match(lines[0], /enabled=false/)
-    assert.match(lines[1], /numero=394209 loja=203862437 found=false/)
+    assert.match(lines[1], /numero=394209 loja=203862437 found=false numeroLoja=394209 pedido=$/)
   })
 
   it('modo só log detecta pedido de outra loja que existe na plataforma', async () => {
     const { run, log } = setup({ ecomOrders: [{ _id: 'o1', shipping_lines: [] }] })
     await run(callbackEntry('203862437'))
-    assert.match(filterLogs(log)[1], /found=true/)
+    // numeroLoja e o pedido encontrado separam pedido real de número coincidente
+    assert.match(filterLogs(log)[1], /found=true numeroLoja=394209 pedido=o1$/)
   })
 
   it('pedido da loja configurada segue o fluxo normal sem logs do filtro', async () => {

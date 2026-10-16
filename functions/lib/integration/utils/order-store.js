@@ -1,10 +1,12 @@
 // loja (canal de venda) do pedido recebido no callback do Bling
 const getBlingOrderStore = (pedido) => {
   const loja = pedido && pedido.loja
-  if (loja && typeof loja === 'object') {
-    return loja.id ? String(loja.id) : null
+  const id = loja && typeof loja === 'object' ? loja.id : loja
+  // 0 ou "0" (número ou texto) indicam pedido sem loja no Bling
+  if (id === undefined || id === null || String(id).trim() === '' || Number(id) === 0) {
+    return null
   }
-  return loja ? String(loja) : null
+  return String(id)
 }
 
 /*

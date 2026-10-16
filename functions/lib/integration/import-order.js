@@ -91,7 +91,8 @@ module.exports = async ({ appSdk, storeId, auth }, _blingStore, _blingDeposit, q
           const { result } = response.data
           if (storeFilter) {
             // validação do modo "só log": pedidos que seriam ignorados não devem existir na loja
-            logger.info(`#${storeId} [ORDER_STORE_FILTER] numero=${blingOrderNumber} loja=${storeFilter.orderStore} found=${result.length > 0}`)
+            // numeroLoja vazio: a busca usou o número interno do Bling e pode coincidir com outro pedido
+            logger.info(`#${storeId} [ORDER_STORE_FILTER] numero=${blingOrderNumber} loja=${storeFilter.orderStore} found=${result.length > 0} numeroLoja=${blingOrder.numeroLoja || ''} pedido=${result.length ? result[0]._id : ''}`)
           }
           if (!result.length) {
             return null
