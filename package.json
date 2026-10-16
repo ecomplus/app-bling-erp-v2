@@ -10,7 +10,9 @@
     "deploy": "NODE_ENV=production node ./scripts/firebase-deploy.js",
     "release": "standard-version",
     "release:starter": "standard-version --prerelease starter",
-    "publish:market": "node ./scripts/market-publication.js"
+    "publish:market": "node ./scripts/market-publication.js",
+    "test": "node --test test/*.test.js",
+    "test:emulator": "firebase emulators:exec --config test/emulator/firebase.json --only firestore --project demo-test \"node --test test/emulator/*.test.js\""
   },
   "repository": {
     "type": "git",

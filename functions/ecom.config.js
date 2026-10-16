@@ -165,6 +165,15 @@ const app = {
       },
       hide: true
     },
+    bling_store_orders_only: {
+      schema: {
+        type: 'boolean',
+        default: false,
+        title: 'Importar apenas pedidos da loja configurada',
+        description: 'Ignora callbacks de pedidos de outras lojas do Bling (ex.: marketplaces), requer o código da loja no Bling'
+      },
+      hide: true
+    },
     bling_deposit: {
       schema: {
         type: 'string',
@@ -278,6 +287,15 @@ const app = {
         default: true,
         title: 'Importar estoques',
         description: 'Atualizar estoques na plataforma, necessário cadastrar o "Callback de estoque" no Bling'
+      },
+      hide: true
+    },
+    skip_unchanged_stock: {
+      schema: {
+        type: 'boolean',
+        default: false,
+        title: 'Ignorar callbacks de estoque sem alteração',
+        description: 'Reduz requisições à API do Bling, consultando o produto apenas quando o saldo recebido no callback for diferente do último saldo importado'
       },
       hide: true
     },
