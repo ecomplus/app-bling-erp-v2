@@ -111,6 +111,10 @@ describe('Firestore (emulador)', () => {
     assert.equal(applied.productId, 'p1')
     assert.equal(applied.variationId, null)
     assert.ok(applied.appliedAt >= before - 1000)
+    // campo da política de TTL do Firestore
+    const stored = (await db.doc(`bling_stock_applied/${storeId}_${encodeURIComponent('SKU/1 #A')}`).get()).data()
+    assert.ok(stored.expireAt instanceof Timestamp)
+    assert.ok(stored.expireAt.toMillis() - stored.appliedAt.toMillis() >= 47 * 60 * 60 * 1000)
     assert.equal(await getAppliedStock(storeId, 'inexistente'), null)
   })
 

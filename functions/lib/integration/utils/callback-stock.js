@@ -50,7 +50,12 @@ const getBlingStockKey = (blingStock) => {
     .slice(0, 16)
 }
 
-// mesma regra de cálculo usada em createUpdateProduct (import-product.js)
+/*
+  Saldo do callback pela regra de createUpdateProduct (import-product.js): saldo virtual com reserva
+  de estoque (ou loja 51292), saldo físico sem, e soma dos depósitos sem depósito configurado ou
+  quando ele não é encontrado. Diferente de lá, um saldo ausente não conta como zero: retorna null
+  para o callback nunca ser ignorado com um valor que o Bling não enviou.
+*/
 const getCallbackQuantity = (blingStock, { storeId, blingDeposit, hasStockReserve }) => {
   if (!blingStock) {
     return null
@@ -60,23 +65,34 @@ const getCallbackQuantity = (blingStock, { storeId, blingDeposit, hasStockReserv
   if (Array.isArray(depositos) && (blingDeposit || quantity === null)) {
     const depositFind = depositos.find(deposito => String(deposito.id) === String(blingDeposit))
     const deposits = depositFind ? [depositFind] : depositos
+    const isVirtual = Number(storeId) === 51292 || hasStockReserve
     quantity = 0
-    deposits.forEach(deposito => {
-      const saldo = Number(storeId) === 51292 || hasStockReserve
-        ? Number(deposito.saldoVirtual)
-        : Number(deposito.saldo)
-      quantity += !Number.isNaN(saldo) ? saldo : 0
-    })
+    for (const deposito of deposits) {
+      const saldo = toNumberOrNull(isVirtual ? deposito.saldoVirtual : deposito.saldo)
+      if (saldo === null) {
+        return null
+      }
+      quantity += saldo
+    }
   }
   return quantity === null ? null : Math.max(0, quantity)
 }
 
+// quantidade atual do produto ou da variação na plataforma (busca/leitura pública, pode ter cache)
+const getPlatformQuantity = (product, variationId) => {
+  const item = variationId && product && Array.isArray(product.variations)
+    ? product.variations.find(variation => variation._id === variationId)
+    : product
+  return item && typeof item.quantity === 'number' ? item.quantity : null
+}
+
 /*
   Decide se o callback de estoque pode ser ignorado sem consultar o Bling:
-  só quando o saldo recebido é igual ao último saldo que o próprio app gravou na loja.
+  só quando o saldo recebido é igual ao último saldo que o próprio app gravou no mesmo produto
+  (ou variação) encontrado agora na plataforma.
   Retorna null quando o evento não veio de callback de estoque.
 */
-const checkUnchangedStock = ({ storeId, appData, blingDeposit, queueEntry, appliedStock, now = Date.now() }) => {
+const checkUnchangedStock = ({ storeId, appData, blingDeposit, queueEntry, appliedStock, product, variationId, now = Date.now() }) => {
   const blingStock = queueEntry && queueEntry._blingStock
   if (!blingStock) {
     return null
@@ -90,6 +106,7 @@ const checkUnchangedStock = ({ storeId, appData, blingDeposit, queueEntry, appli
     ? Object.keys(queueEntry._blingStockSeen).length
     : 1
   const appliedQuantity = appliedStock ? appliedStock.quantity : null
+  const platformQuantity = getPlatformQuantity(product, variationId)
 
   let reason
   if (callbackQuantity === null) {
@@ -97,9 +114,17 @@ const checkUnchangedStock = ({ storeId, appData, blingDeposit, queueEntry, appli
   } else if (seenCount > 1) {
     // recebeu saldos diferentes enquanto o evento aguardava na fila
     reason = 'multiple-values'
+  } else if (!product || !product._id) {
+    reason = 'no-product'
   } else if (!appliedStock || typeof appliedQuantity !== 'number') {
     reason = 'no-applied-stock'
-  } else if (appData.update_product && !appliedStock.variationId) {
+  } else if (
+    appliedStock.productId !== product._id ||
+    (appliedStock.variationId || null) !== (variationId || null)
+  ) {
+    // SKU passou para outro produto ou variação depois do último saldo gravado
+    reason = 'product-changed'
+  } else if (appData.update_product && !variationId) {
     // com "Sobrescrever produtos" o cadastro inteiro é atualizado, não apenas o estoque
     reason = 'update-product'
   } else if (!appliedStock.appliedAt || now - appliedStock.appliedAt > APPLIED_STOCK_MAX_AGE) {
@@ -111,6 +136,9 @@ const checkUnchangedStock = ({ storeId, appData, blingDeposit, queueEntry, appli
   return {
     callbackQuantity,
     appliedQuantity,
+    platformQuantity,
+    // a plataforma mudou o estoque depois do último saldo gravado (pedido, edição manual etc.)
+    hasPlatformDrift: platformQuantity !== null && appliedQuantity !== null && platformQuantity !== appliedQuantity,
     seenCount,
     isUnchanged: !reason,
     reason: reason || null,
@@ -118,10 +146,24 @@ const checkUnchangedStock = ({ storeId, appData, blingDeposit, queueEntry, appli
   }
 }
 
+/*
+  Indica se chegou algum saldo novo no documento da fila depois do início do processamento,
+  inclusive quando o último saldo voltou a ser igual ao inicial (A -> B -> A).
+*/
+const hasNewBlingStock = (startData, currentData) => {
+  if (getBlingStockKey(currentData._blingStock) !== getBlingStockKey(startData._blingStock)) {
+    return true
+  }
+  const startSeen = startData._blingStockSeen || {}
+  return Object.keys(currentData._blingStockSeen || {}).some(key => !startSeen[key])
+}
+
 module.exports = {
   APPLIED_STOCK_MAX_AGE,
   normalizeBlingStock,
   getBlingStockKey,
   getCallbackQuantity,
-  checkUnchangedStock
+  getPlatformQuantity,
+  checkUnchangedStock,
+  hasNewBlingStock
 }

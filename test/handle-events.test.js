@@ -104,6 +104,21 @@ describe('handle-events', () => {
     assert.ok(log.lines.some(line => line.includes('[STOCK_REQUEUE] queue/51266/events/product_111 enabled=true')))
   })
 
+  it('ligado: saldo que mudou e voltou ao inicial durante o processamento volta para a fila', async () => {
+    const onHandle = async (db) => {
+      await receiveCallback(7)(db)
+      await receiveCallback(10)(db)
+    }
+    const { run, db, log } = setup({ appData: { skip_unchanged_stock: true }, onHandle })
+    await run()
+    const queueDoc = db.docs.get(queuePath)
+    assert.ok(queueDoc, 'evento deveria continuar na fila')
+    assert.equal(queueDoc._blingStock.estoqueAtual, 10)
+    assert.equal(Object.keys(queueDoc._blingStockSeen).length, 2)
+    assert.equal(queueDoc.processingAt, undefined)
+    assert.ok(log.lines.some(line => line.includes('[STOCK_REQUEUE]')))
+  })
+
   it('desligado (modo só log): mantém o comportamento atual e registra o caso', async () => {
     const { run, db, log } = setup({ appData: {}, onHandle: receiveCallback(7) })
     await run()

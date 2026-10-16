@@ -3,6 +3,9 @@ const { logger } = require('../../../context')
 
 // último saldo gravado pelo app em cada SKU, usado para ignorar callbacks repetidos
 const collectionName = 'bling_stock_applied'
+// registros com mais de 24h já não ignoram callbacks (APPLIED_STOCK_MAX_AGE), a política de TTL
+// do Firestore no campo expireAt remove os antigos
+const EXPIRE_AFTER = 2 * 24 * 60 * 60 * 1000
 
 const getDocRef = (storeId, sku) => getFirestore()
   .doc(`${collectionName}/${storeId}_${encodeURIComponent(sku)}`)
@@ -35,7 +38,8 @@ const setAppliedStock = async (storeId, sku, { quantity, productId, variationId 
       quantity,
       productId,
       variationId: variationId || null,
-      appliedAt: Timestamp.now()
+      appliedAt: Timestamp.now(),
+      expireAt: Timestamp.fromMillis(Date.now() + EXPIRE_AFTER)
     })
   } catch (err) {
     logger.warn(`#${storeId} [STOCK_SKIP] erro ao salvar saldo aplicado ${sku}: ${err.message}`)

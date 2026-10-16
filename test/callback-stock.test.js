@@ -7,7 +7,9 @@ const {
   normalizeBlingStock,
   getBlingStockKey,
   getCallbackQuantity,
-  checkUnchangedStock
+  getPlatformQuantity,
+  checkUnchangedStock,
+  hasNewBlingStock
 } = loadWithStubs('./lib/integration/utils/callback-stock')
 
 // formato real recebido em functions/routes/bling/callback.js (loja 51266)
@@ -101,6 +103,33 @@ describe('getCallbackQuantity', () => {
     assert.equal(getCallbackQuantity({ estoqueAtual: null, depositos: null }, { storeId: 1 }), null)
     assert.equal(getCallbackQuantity(null, { storeId: 1 }), null)
   })
+
+  it('saldo ausente no depósito usado não conta como zero', () => {
+    const semVirtual = normalizeBlingStock({ estoqueAtual: 7, depositos: [{ deposito: { id: '1', saldo: 7 } }] })
+    assert.equal(getCallbackQuantity(semVirtual, { storeId: 1, blingDeposit: '1', hasStockReserve: true }), null)
+    assert.equal(getCallbackQuantity(semVirtual, { storeId: 1, blingDeposit: '1' }), 7)
+    const semSaldo = normalizeBlingStock({ estoqueAtual: '', depositos: [{ deposito: { id: '1' } }] })
+    assert.equal(getCallbackQuantity(semSaldo, { storeId: 1 }), null)
+    // somando todos os depósitos, basta um sem saldo para não calcular
+    const parcial = normalizeBlingStock({ depositos: [{ deposito: { id: '1', saldo: 3 } }, { deposito: { id: '2' } }] })
+    assert.equal(getCallbackQuantity(parcial, { storeId: 1 }), null)
+  })
+})
+
+describe('getPlatformQuantity', () => {
+  const product = { _id: 'p2', quantity: 9, variations: [{ _id: 'v1', quantity: 3 }, { _id: 'v2' }] }
+
+  it('lê a quantidade do produto ou da variação', () => {
+    assert.equal(getPlatformQuantity(product), 9)
+    assert.equal(getPlatformQuantity(product, 'v1'), 3)
+  })
+
+  it('retorna null sem quantidade conhecida', () => {
+    assert.equal(getPlatformQuantity(product, 'v2'), null)
+    assert.equal(getPlatformQuantity(product, 'v9'), null)
+    assert.equal(getPlatformQuantity({ _id: 'p1' }), null)
+    assert.equal(getPlatformQuantity(null), null)
+  })
 })
 
 describe('checkUnchangedStock', () => {
@@ -111,12 +140,16 @@ describe('checkUnchangedStock', () => {
     _blingStockSeen: { [getBlingStockKey(blingStock)]: true }
   }
   const appliedStock = { quantity: 10, productId: 'p1', variationId: null, appliedAt: now - 1000 }
+  const product = { _id: 'p1', quantity: 10 }
+  const variationProduct = { _id: 'p2', variations: [{ _id: 'v1', quantity: 10 }] }
   const check = (overrides = {}) => checkUnchangedStock({
     storeId: 51266,
     appData: { skip_unchanged_stock: true },
     blingDeposit: undefined,
     queueEntry,
     appliedStock,
+    product,
+    variationId: undefined,
     now,
     ...overrides
   })
@@ -125,11 +158,36 @@ describe('checkUnchangedStock', () => {
     assert.deepEqual(check(), {
       callbackQuantity: 10,
       appliedQuantity: 10,
+      platformQuantity: 10,
+      hasPlatformDrift: false,
       seenCount: 1,
       isUnchanged: true,
       reason: null,
       isEnabled: true
     })
+  })
+
+  it('indica quando a plataforma mudou o estoque depois do último saldo gravado', () => {
+    const result = check({ product: { _id: 'p1', quantity: 9 } })
+    assert.equal(result.platformQuantity, 9)
+    assert.equal(result.hasPlatformDrift, true)
+    // só registra: a busca e a leitura pública da plataforma podem estar em cache
+    assert.equal(result.isUnchanged, true)
+    assert.equal(check({ product: { _id: 'p1' } }).hasPlatformDrift, false)
+  })
+
+  it('consulta o Bling quando o SKU está em outro produto', () => {
+    assert.equal(check({ product: { _id: 'p9', quantity: 10 } }).reason, 'product-changed')
+  })
+
+  it('consulta o Bling quando o SKU mudou de variação para produto simples ou o contrário', () => {
+    const appliedVariation = { ...appliedStock, productId: 'p1', variationId: 'v1' }
+    assert.equal(check({ appliedStock: appliedVariation }).reason, 'product-changed')
+    assert.equal(check({ product: { ...variationProduct, _id: 'p1' }, variationId: 'v1' }).reason, 'product-changed')
+  })
+
+  it('não ignora sem produto encontrado na plataforma', () => {
+    assert.equal(check({ product: null }).reason, 'no-product')
   })
 
   it('não se aplica a eventos sem saldo do callback (importação manual)', () => {
@@ -168,13 +226,49 @@ describe('checkUnchangedStock', () => {
   it('ignora variação mesmo com "Sobrescrever produtos" (só o estoque é atualizado)', () => {
     const result = check({
       appData: { skip_unchanged_stock: true, update_product: true },
-      appliedStock: { ...appliedStock, variationId: 'v1' }
+      appliedStock: { ...appliedStock, productId: 'p2', variationId: 'v1' },
+      product: variationProduct,
+      variationId: 'v1'
     })
     assert.equal(result.isUnchanged, true)
+    assert.equal(result.platformQuantity, 10)
   })
 
   it('não ignora sem saldo calculável no callback', () => {
     const emptyStock = { estoqueAtual: null, depositos: null }
     assert.equal(check({ queueEntry: { _blingStock: emptyStock } }).reason, 'no-callback-quantity')
+  })
+})
+
+describe('hasNewBlingStock', () => {
+  const stockOf = estoqueAtual => normalizeBlingStock({ estoqueAtual })
+  const keyOf = estoqueAtual => getBlingStockKey(stockOf(estoqueAtual))
+  const start = { _blingStock: stockOf(10), _blingStockSeen: { [keyOf(10)]: true } }
+
+  it('nada novo quando o documento não mudou ou recebeu o mesmo saldo', () => {
+    assert.equal(hasNewBlingStock(start, start), false)
+    assert.equal(hasNewBlingStock(start, { ...start, createdAt: 123 }), false)
+  })
+
+  it('saldo diferente durante o processamento', () => {
+    assert.equal(hasNewBlingStock(start, {
+      _blingStock: stockOf(7),
+      _blingStockSeen: { [keyOf(10)]: true, [keyOf(7)]: true }
+    }), true)
+  })
+
+  it('saldo que mudou e voltou ao inicial (A -> B -> A)', () => {
+    assert.equal(hasNewBlingStock(start, {
+      _blingStock: stockOf(10),
+      _blingStockSeen: { [keyOf(10)]: true, [keyOf(7)]: true }
+    }), true)
+  })
+
+  it('evento reenfileirado só considera saldos que chegaram depois do início', () => {
+    const requeued = {
+      _blingStock: stockOf(7),
+      _blingStockSeen: { [keyOf(10)]: true, [keyOf(7)]: true }
+    }
+    assert.equal(hasNewBlingStock(requeued, requeued), false)
   })
 })

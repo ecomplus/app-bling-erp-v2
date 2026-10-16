@@ -113,16 +113,10 @@ module.exports = async ({ appSdk, storeId, auth }, blingStore, blingDeposit, que
   const [sku, productId] = String(queueEntry.nextId).split(';:')
   const { client_id: clientId, client_secret: clientSecret } = appData
 
+  // callback de estoque: o saldo já vem no corpo, só consulta o Bling se mudou
+  // (lido em paralelo com a busca do produto na plataforma)
+  const appliedStockPromise = queueEntry._blingStock ? getAppliedStock(storeId, sku) : null
   let stockCheck = null
-  if (queueEntry._blingStock) {
-    // callback de estoque: o saldo já vem no corpo, só consulta o Bling se mudou
-    const appliedStock = await getAppliedStock(storeId, sku)
-    stockCheck = checkUnchangedStock({ storeId, appData, blingDeposit, queueEntry, appliedStock })
-    logger.info(`#${storeId} [STOCK_SKIP] sku=${sku} callback=${stockCheck.callbackQuantity} applied=${stockCheck.appliedQuantity} seen=${stockCheck.seenCount} unchanged=${stockCheck.isUnchanged} reason=${stockCheck.reason} enabled=${stockCheck.isEnabled}`)
-    if (stockCheck.isUnchanged && stockCheck.isEnabled) {
-      return { status: 'unchanged' }
-    }
-  }
 
   const findingProduct = productId
     ? ecomClient.store({
@@ -224,6 +218,22 @@ module.exports = async ({ appSdk, storeId, auth }, blingStore, blingDeposit, que
       return payload
     })
     .then(async (payload) => {
+      if (appliedStockPromise) {
+        stockCheck = checkUnchangedStock({
+          storeId,
+          appData,
+          blingDeposit,
+          queueEntry,
+          appliedStock: await appliedStockPromise,
+          product: payload.product,
+          variationId: payload.variationId
+        })
+        logger.info(`#${storeId} [STOCK_SKIP] sku=${sku} callback=${stockCheck.callbackQuantity} applied=${stockCheck.appliedQuantity} platform=${stockCheck.platformQuantity} drift=${stockCheck.hasPlatformDrift} seen=${stockCheck.seenCount} unchanged=${stockCheck.isUnchanged} reason=${stockCheck.reason} enabled=${stockCheck.isEnabled}`)
+        if (stockCheck.isUnchanged && stockCheck.isEnabled) {
+          return { status: 'unchanged' }
+        }
+      }
+
       const bling = new Bling(clientId, clientSecret, storeId)
       let blingProductId
       if (payload?.product && payload.product.metafields) {

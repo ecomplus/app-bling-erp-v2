@@ -3,7 +3,7 @@ const admin = require('firebase-admin')
 const getAppData = require('../store-api/get-app-data')
 const { logger } = require('../../context')
 const { getAppSdk, log } = require('./utils')
-const { getBlingStockKey } = require('../integration/utils/callback-stock')
+const { hasNewBlingStock } = require('../integration/utils/callback-stock')
 
 const integrationHandlers = {
   exportation: {
@@ -22,14 +22,13 @@ const integrationHandlers = {
   Remove o evento da fila após o processamento, exceto quando um callback com saldo
   diferente chegou durante a execução (ele seria apagado junto e o novo saldo perdido).
 */
-const finishStockQueueDoc = (docRef, startStock, canRequeue) => {
-  const startKey = getBlingStockKey(startStock)
+const finishStockQueueDoc = (docRef, startData, canRequeue) => {
   return admin.firestore().runTransaction(async (transaction) => {
     const docSnapshot = await transaction.get(docRef)
     if (!docSnapshot.exists) {
       return { isChanged: false, isKept: false }
     }
-    const isChanged = getBlingStockKey(docSnapshot.data()._blingStock) !== startKey
+    const isChanged = hasNewBlingStock(startData, docSnapshot.data())
     if (isChanged && canRequeue) {
       return { isChanged, isKept: true }
     }
@@ -111,7 +110,7 @@ const handleEvents = async (event) => {
           logger.info(`>Finish ${action} ${queue} ${resourceId} [${documentId}]`)
           if (_blingStock) {
             const isRequeueEnabled = appData.skip_unchanged_stock === true
-            await finishStockQueueDoc(docRef.ref, _blingStock, isRequeueEnabled)
+            await finishStockQueueDoc(docRef.ref, { _blingStock, _blingStockSeen }, isRequeueEnabled)
               .then(({ isChanged, isKept }) => {
                 if (isChanged) {
                   logger.info(`>[${storeId}] [STOCK_REQUEUE] ${documentId} enabled=${isRequeueEnabled}`)

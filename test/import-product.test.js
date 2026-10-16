@@ -37,7 +37,7 @@ const blingRoutes = ({ simpleStock = 10, variationStock = 4, storePrice = 55 } =
   [/^\/produtos\/lojas\?/, { data: [{ preco: storePrice }] }]
 ]
 
-const simpleHit = { _id: 'p1', _source: { sku: 'SKU1', name: 'Produto 1', quantity: 7 } }
+const simpleHit = { _id: 'p1', _source: { sku: 'SKU1', name: 'Produto 1', quantity: 10 } }
 const variationHit = { _id: 'p2', _source: { sku: 'PAI', variations: [{ sku: 'VAR1' }] } }
 const variationProduct = {
   _id: 'p2',
@@ -135,17 +135,37 @@ describe('import-product', () => {
   })
 
   describe('#1 callbacks de estoque sem alteração', () => {
-    it('ligado: saldo igual ao último aplicado não consulta Bling nem a loja', async () => {
+    it('ligado: saldo igual ao último aplicado não consulta o Bling nem grava na loja', async () => {
       const importProduct = setup()
       setApplied('SKU1', 10)
       const appData = { bling_store: blingStore, skip_unchanged_stock: true }
       const result = await importProduct({ appSdk: sdk.appSdk, storeId }, blingStore, undefined, callbackQueueEntry('SKU1', 10), appData, false, true)
       assert.deepEqual(result, { status: 'unchanged' })
       assert.deepEqual(bling.calls, [])
-      assert.deepEqual(ecom.calls, [])
+      // só a busca do produto na plataforma, para conferir se o SKU continua no mesmo produto
+      assert.equal(ecom.calls.length, 1)
+      assert.match(ecom.calls[0], /^search /)
       assert.deepEqual(sdk.requests, [])
       assert.equal(logsWith('[STOCK_SKIP]').length, 1)
-      assert.match(logsWith('[STOCK_SKIP]')[0], /callback=10 applied=10 seen=1 unchanged=true reason=null enabled=true/)
+      assert.match(logsWith('[STOCK_SKIP]')[0], /callback=10 applied=10 platform=10 drift=false seen=1 unchanged=true reason=null enabled=true/)
+    })
+
+    it('ligado: SKU em outro produto da plataforma consulta o Bling e atualiza o registro', async () => {
+      const importProduct = setup()
+      setApplied('SKU1', 10, { productId: 'p-antigo' })
+      await importProduct({ appSdk: sdk.appSdk, storeId }, undefined, undefined, callbackQueueEntry('SKU1', 10), { skip_unchanged_stock: true }, false, true)
+      assert.match(logsWith('[STOCK_SKIP]')[0], /unchanged=false reason=product-changed/)
+      assert.equal(bling.calls.length, 3)
+      assert.deepEqual(sdk.requests, [{ url: '/products/p1/quantity.json', method: 'PUT', body: { quantity: 10 } }])
+      assert.equal(db.docs.get(appliedPath('SKU1')).productId, 'p1')
+    })
+
+    it('registra quando a plataforma mudou o estoque depois do último saldo gravado', async () => {
+      const importProduct = setup({ searchHits: [{ ...simpleHit, _source: { ...simpleHit._source, quantity: 7 } }] })
+      setApplied('SKU1', 10)
+      const result = await importProduct({ appSdk: sdk.appSdk, storeId }, undefined, undefined, callbackQueueEntry('SKU1', 10), { skip_unchanged_stock: true }, false, true)
+      assert.deepEqual(result, { status: 'unchanged' })
+      assert.match(logsWith('[STOCK_SKIP]')[0], /applied=10 platform=7 drift=true .*unchanged=true/)
     })
 
     it('desligado (modo só log): segue o fluxo atual e registra a validação', async () => {
@@ -220,10 +240,13 @@ describe('import-product', () => {
       // primeiro callback: sem registro, consulta o Bling e grava
       await importProduct({ appSdk: sdk.appSdk, storeId }, undefined, undefined, callbackQueueEntry('VAR1', 4), appData, false, true)
       assert.deepEqual(sdk.requests, [{ url: '/products/p2/variations/v1/quantity.json', method: 'PUT', body: { quantity: 4 } }])
+      const applied = db.docs.get(appliedPath('VAR1'))
       assert.deepEqual(
-        { ...db.docs.get(appliedPath('VAR1')), appliedAt: null },
-        { appliedAt: null, productId: 'p2', quantity: 4, sku: 'VAR1', storeId, variationId: 'v1' }
+        { ...applied, appliedAt: null, expireAt: null },
+        { appliedAt: null, expireAt: null, productId: 'p2', quantity: 4, sku: 'VAR1', storeId, variationId: 'v1' }
       )
+      // removido pela política de TTL do Firestore depois de 48h
+      assert.ok(applied.expireAt.toMillis() - applied.appliedAt.toMillis() >= 47 * 60 * 60 * 1000)
       // callback repetido: ignorado
       const callsBefore = bling.calls.length
       const result = await importProduct({ appSdk: sdk.appSdk, storeId }, undefined, undefined, callbackQueueEntry('VAR1', 4), appData, false, true)
